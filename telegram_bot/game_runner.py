@@ -2,6 +2,8 @@ from constants.Cards import playerSets
 from random import randrange
 from telebot import types
 import random
+import datetime
+import time
 import re
 from config import TEST
 
@@ -20,40 +22,455 @@ def start_round(bot, game):
     # --> choose_policy --> pass_two_policies --> choose_policy --> enact_policy --> start_round
 
 def choose_chancellor(bot, game):
-    #log.info('choose_chancellor called')
+    print('choose_chancellor called')
     strcid = str(game.chat_id)
-    pres_player = 0
-    chan_player = 0
+    pres_player = None
+    chan_player = None
     btns = []
     if game.board.state.president is not None:
-        pres_player = game.board.state.president.player
+        pres_player = game.board.state.president.user_id
     if game.board.state.chancellor is not None:
-        chan_player= game.board.state.chancellor.player
+        chan_player = game.board.state.chancellor.user_id
     for player in game.get_players():
         # If there are only five players left in the
         # game, only the last elected Chancellor is
         # ineligible to be Chancellor Candidate; the
         # last President may be nominated.
-        if len(game.player_sequence) > 5:
-            if player != game.board.state.nominated_president.player and game.get_players()[
-                player].is_dead == False and player != pres_player and player != chan_player:
-                name = game.get_players()[player].name
-                btns.append([types.InlineKeyboardButton(name, callback_data=strcid + "_chan_" + str(player))])
+        if len(game.get_players()) > 5:
+            if player.user_id != game.board.state.nominated_president.user_id and player.alive == True and player.user_id != pres_player and player.user_id != chan_player:
+                btns.append([types.InlineKeyboardButton(player.name, callback_data=strcid + "_choose_chancellor_" + str(player.user_id))])
         else:
-            if player != game.board.state.nominated_president.player and game.get_players()[
-                player].is_dead == False and player != chan_player:
-                name = game.get_players()[player].name
-                btns.append([types.InlineKeyboardButton(name, callback_data=strcid + "_chan_" + str(player))])
+            if player.user_id != game.board.state.nominated_president.user_id and player.alive == True and player.user_id != chan_player:
+                btns.append([types.InlineKeyboardButton(player.name, callback_data=strcid + "_choose_chancellor_" + str(player.user_id))])
 
     chancellorMarkup = types.InlineKeyboardMarkup(btns)
-    bot.send_message(game.board.state.nominated_president.player, game.board.print_board())
-    bot.send_message(game.board.state.nominated_president.player, 'Please nominate your chancellor!',
-                     reply_markup=chancellorMarkup)
+    if not re.search('test', str(game.board.state.nominated_president.user_id)):
+        bot.send_message(game.board.state.nominated_president.user_id, game.board.print_board())
+        bot.send_message(game.board.state.nominated_president.user_id, 'Please nominate your chancellor!',
+                         reply_markup=chancellorMarkup)
+    else:  # case for test player
+        # pick the first available player as chancellor
+        for player in game.get_players():
+            if player.user_id != game.board.state.nominated_president.user_id and player.alive == True and player.user_id != chan_player:
+                game.board.state.nominated_chancellor = player
+                # now trigger the nomination
+                nominate_chosen_chancellor(bot, game)
+                break
+
+def nominate_chosen_chancellor(bot, game):
+    print('nominate_chosen_chancellor called')
+    try:
+        print("President %s (%s) nominated %s (%s)" % (
+            game.board.state.nominated_president.name, game.board.state.nominated_president.user_id,
+            game.board.state.nominated_chancellor.name, game.board.state.nominated_chancellor.user_id))
+        if not re.search('test', str(game.board.state.nominated_president.user_id)):
+            bot.send_message(game.chat_id,
+                             "President %s nominated %s as Chancellor. Please vote now!" % (
+                                 game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
+                                 
+        vote(bot, game)
+    except AttributeError as e:
+        print("nominate_chosen_chancellor: Game or board should not be None! Error: " + str(e))
+    except Exception as e:
+        print("Unknown error: " + str(e))
+
+def check_and_count_votes(bot, game):
+    if len(game.votes) == len(game.get_players()):
+        count_votes(bot, game)
+
+def vote(bot, game):
+    print('vote called')
+    game.dateinitvote = datetime.datetime.now()
+    strcid = str(game.chat_id)
+    
+    for player in game.get_players():
+        if player.alive:
+            # Create vote buttons for this specific player
+            btns = [[types.InlineKeyboardButton("Ja", callback_data=f"{strcid}_vote_{player.user_id}_Ja")],
+                    [types.InlineKeyboardButton("Nein", callback_data=f"{strcid}_vote_{player.user_id}_Nein")]
+]
+            voteMarkup = types.InlineKeyboardMarkup(btns)
+
+            # the nominated president already got the board before nominating a chancellor
+            if not re.search('test', str(player.user_id)):
+                bot.send_message(player.user_id, game.board.print_board())
+                bot.send_message(player.user_id,
+                                    "Do you want to elect President %s and Chancellor %s?" % (
+                                        game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name),
+                                     reply_markup=voteMarkup)
+            else:  # case for test player
+                # generate a random vote
+                player_vote = random.choice(["Ja", "Nein"])
+                game.votes[player.user_id] = player_vote
+                print(f"Test player {player.name} ({player.user_id}) voted {player_vote}")
+    check_and_count_votes(bot, game)
+
+def count_votes(bot, game):
+    print('count_votes called')
+    print(f"Votes: {game.votes}")
+    print(f"Number of players: {len(game.get_players())}")
+
+    # Voting Ended
+    game.dateinitvote = None
+    voting_text = ""
+    voting_success = False
+    for player in game.get_players():
+        if game.votes[player.user_id] == "Ja":
+            voting_text += player.name + " voted Ja!\n"
+        elif game.votes[player.user_id] == "Nein":
+            voting_text += player.name + " voted Nein!\n"
+    if list(game.votes.values()).count("Ja") > len(game.get_players_alive()) / 2:
+        # VOTING WAS SUCCESSFUL
+        print("Voting successful")
+        voting_text += "Hail President %s! Hail Chancellor %s!" % (
+            game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
+        
+        game.board.state.chancellor = game.board.state.nominated_chancellor
+        game.board.state.president = game.board.state.nominated_president
+        
+        bot.send_message(game.chat_id, voting_text)  # Send the message before setting to None
+
+        voting_success = True
+
+        voting_aftermath(bot, game, voting_success)
+
+        # Set nominated_president and nominated_chancellor to None after they're no longer needed
+        game.board.state.nominated_president = None
+        game.board.state.nominated_chancellor = None
+    else:
+        print("Voting failed")
+        voting_text += "The people didn't like the two candidates!"
+        game.board.state.nominated_president = None
+        game.board.state.nominated_chancellor = None
+        game.board.state.failed_votes += 1
+        bot.send_message(game.chat_id, voting_text)
+        if game.board.state.failed_votes == 3:
+            do_anarchy(bot, game)
+        else:
+            voting_aftermath(bot, game, voting_success)
+
+    game.votes.clear()
+
+def voting_aftermath(bot, game, voting_success):
+    print('voting_aftermath called')
+    game.board.state.last_votes = {}
+    if voting_success:
+        if game.board.state.fascist_track >= 3 and game.board.state.chancellor.role == "Hitler":
+            # fascists win, because Blue was elected as chancellor after 3 fascist policies
+            game.board.state.game_endcode = -2
+            end_game(bot, game, game.board.state.game_endcode)
+        elif game.board.state.fascist_track >= 3 and game.board.state.chancellor.role != "Hitler" and game.board.state.chancellor not in game.board.state.not_hitlers:
+            game.board.state.not_hitlers.append(game.board.state.chancellor)
+            draw_policies(bot, game)
+        else:
+            # voting was successful and Blue was not nominated as chancellor after 3 fascist policies
+            draw_policies(bot, game)
+    else:
+        bot.send_message(game.chat_id, game.board.print_board())
+        start_next_round(bot, game)
+    game.votes.clear()
+
+def draw_policies(bot, game):
+    print('draw_policies called')
+    strcid = str(game.chat_id)
+    game.board.state.veto_refused = False
+    # shuffle discard pile with rest if rest < 3
+    shuffle_policy_pile(bot, game)
+    btns = []
+    for i in range(3):
+        game.board.state.drawn_policies.append(game.board.policies.pop(0))
+    for policy in game.board.state.drawn_policies:
+        btns.append([types.InlineKeyboardButton(policy, callback_data=strcid + "_" + policy)])
+
+    choosePolicyMarkup = types.InlineKeyboardMarkup(btns)
+    if not re.search('test', str(game.board.state.president.user_id)):
+        bot.send_message(game.board.state.president.user_id,
+                        "You drew the following 3 policies. Which one do you want to discard?",
+                        reply_markup=choosePolicyMarkup)
+    else:  # case for test player
+        discarded_policy = random.choice(game.board.state.drawn_policies)
+        game.board.state.drawn_policies.remove(discarded_policy)
+        print(f"Test player {game.board.state.president.name} ({game.board.state.president.user_id}) discarded {discarded_policy}")
+        pass_two_policies(bot, game)
+
+def pass_two_policies(bot, game):
+    print('pass_two_policies called')
+    strcid = str(game.chat_id)
+    btns = []
+    for policy in game.board.state.drawn_policies:
+        btns.append([types.InlineKeyboardButton(policy, callback_data=strcid + "_" + policy)])
+    choosePolicyMarkup = types.InlineKeyboardMarkup(btns)
+
+    is_test_player = re.search('test', str(game.board.state.chancellor.user_id))
+
+    if game.board.state.fascist_track == 5 and not game.board.state.veto_refused:
+        btns.append([types.InlineKeyboardButton("Veto", callback_data=strcid + "_veto")])
+        if not is_test_player:
+            bot.send_message(game.chat_id,
+                             "President %s gave two policies to Chancellor %s." % (
+                                 game.board.state.president.name, game.board.state.chancellor.name))
+            bot.send_message(game.board.state.chancellor.user_id,
+                             "President %s gave you the following 2 policies. Which one do you want to enact? You can also use your Veto power." % game.board.state.president.name,
+                             reply_markup=choosePolicyMarkup)
+        else:
+            handle_test_player_choice(bot, game)
+
+    elif game.board.state.veto_refused:
+        if not is_test_player:
+            bot.send_message(game.board.state.chancellor.user_id,
+                             "President %s refused your Veto. Now you have to choose. Which one do you want to enact?" % game.board.state.president.name,
+                             reply_markup=choosePolicyMarkup)
+        else:
+            handle_test_player_choice(bot, game)
+
+    elif game.board.state.fascist_track < 5:
+        if not is_test_player:
+            bot.send_message(game.board.state.chancellor.user_id,
+                             "President %s gave you the following 2 policies. Which one do you want to enact?" % game.board.state.president.name,
+                             reply_markup=choosePolicyMarkup)
+        else:
+            handle_test_player_choice(bot, game)
+
+def handle_test_player_choice(bot, game):
+    # Randomly select a policy
+    policy_choice = random.choice(game.board.state.drawn_policies)
+    print(f"Test player {game.board.state.chancellor.user_id} chose {policy_choice}")
+    # Implement logic here to handle the test player's chosen policy
+
+    # Enact the chosen policy
+    time.sleep(2)  # wait for 2 seconds
+    enact_policy(bot, game, policy_choice, False)  # assuming anarchy = False
+
+def enact_policy(bot, game, policy, anarchy):
+    print('enact_policy called')
+    
+    if policy == "liberal":
+        game.board.state.liberal_track += 1
+    elif policy == "fascist":
+        game.board.state.fascist_track += 1
+    
+    game.board.state.failed_votes = 0  # reset counter
+    
+    if not anarchy:
+        bot.send_message(game.chat_id,
+                         "President %s and Chancellor %s enacted a %s policy!" % (
+                             game.board.state.president.name, game.board.state.chancellor.name, policy))
+    else:
+        bot.send_message(game.chat_id,
+                         "The top most policy was enacted: %s" % policy)
+
+    time.sleep(3)
+    bot.send_message(game.chat_id, game.board.print_board())
+    # end of round
+    if game.board.state.liberal_track == 5:
+        game.board.state.game_endcode = 1
+        end_game(bot, game, game.board.state.game_endcode)  # liberals win with 5 liberal policies
+    if game.board.state.fascist_track == 6:
+        game.board.state.game_endcode = -1
+        end_game(bot, game, game.board.state.game_endcode)  # fascists win with 6 fascist policies
+
+    time.sleep(3)
+    # End of legislative session, shuffle if necessary 
+    shuffle_policy_pile(bot, game)    
+    
+    if not anarchy:
+        if policy == "fascist":
+            action = game.board.fascist_track_actions[game.board.state.fascist_track - 1]
+            if action is None and game.board.state.fascist_track == 6:
+                pass
+            elif action == None:
+                start_next_round(bot, game)
+            elif action == "policy":
+                bot.send_message(game.chat_id,
+                                 "Presidential Power enabled: Policy Peek " + u"\U0001F52E" + "\nPresident %s now knows the next three policies on "
+                                                                                              "the pile.  The President may share "
+                                                                                              "(or lie about!) the results of their "
+                                                                                              "investigation at their discretion." % game.board.state.president.name)
+                action_policy(bot, game)
+            elif action == "kill":
+                bot.send_message(game.chat_id,
+                                 "Presidential Power enabled: Execution " + u"\U0001F5E1" + "\nPresident %s has to kill one person. You can "
+                                                                                            "discuss the decision now but the "
+                                                                                            "President has the final say." % game.board.state.president.name)
+                action_kill(bot, game)
+            elif action == "inspect":
+                bot.send_message(game.chat_id,
+                                 "Presidential Power enabled: Investigate Loyalty " + u"\U0001F50E" + "\nPresident %s may see the party membership of one "
+                                                                                                      "player. The President may share "
+                                                                                                      "(or lie about!) the results of their "
+                                                                                                      "investigation at their discretion." % game.board.state.president.name)
+                action_inspect(bot, game)
+            elif action == "choose":
+                bot.send_message(game.chat_id,
+                                 "Presidential Power enabled: Call Special Election " + u"\U0001F454" + "\nPresident %s gets to choose the next presidential "
+                                                                                                        "candidate. Afterwards the order resumes "
+                                                                                                        "back to normal." % game.board.state.president.name)
+                action_choose(bot, game)
+        else:
+            start_next_round(bot, game)
+    else:
+        start_next_round(bot, game)
+
+def choose_veto(bot, game, player_id, answer):
+    print(f"choose_veto called with player_id: {player_id} and answer: {answer}")
+
+    # Assuming you have a way to get player from player_id
+    player = game.get_player(player_id)
+    
+    if answer == "yesveto":
+        bot.send_message(game.chat_id,
+                         f"{player.name} accepted the Veto. No policy was enacted but this counts as a failed election.")
+        game.board.discards.extend(game.board.state.drawn_policies)
+        game.board.state.drawn_policies = []
+        game.board.state.failed_votes += 1
+        if game.board.state.failed_votes == 3:
+            do_anarchy(bot, game)
+
+        else:
+            # call print_board and start_next_round functions here
+            pass  # Replace with the actual function calls
+    elif answer == "noveto":
+        game.board.state.veto_refused = True
+        bot.send_message(game.chat_id,
+                         f"{player.name} refused the Veto. The Chancellor now has to choose a policy!")
+        # call pass_two_policies function here
+        pass  # Replace with the actual function call
+    else:
+        print("choose_veto: Callback data can either be \"yesveto\" or \"noveto\".")
+
+def do_anarchy(bot, game):
+    print('do_anarchy called')
+    bot.send_message(game.chat_id, game.board.print_board())
+    bot.send_message(game.chat_id, "ANARCHY!!")
+    game.board.state.president = None
+    game.board.state.chancellor = None
+    top_policy = game.board.policies.pop(0)
+    game.board.state.last_votes = {}
+    enact_policy(bot, game, top_policy, True)
+
+def action_policy(bot, game):
+    print('action_policy called')
+    topPolicies = ""
+    # shuffle discard pile with rest if rest < 3
+    shuffle_policy_pile(bot, game)
+    for i in range(3):
+        topPolicies += game.board.policies[i] + "\n"
+    if not re.search('test', str(game.board.state.president.user_id)):
+        bot.send_message(game.board.state.president.user_id,
+                        "The top three polices are (top most first):\n%s\nYou may lie about this." % topPolicies)
+    start_next_round(bot, game)
+
+def action_kill(bot, game):
+    print('action_kill called')
+    btns = []
+    for player in game.get_players():
+        if player != game.board.state.president and player.alive == True:
+            name = player.name
+            btns.append([types.InlineKeyboardButton(name, callback_data=str(game.chat_id) + "_kill_" + str(player.user_id))])
+
+    kill_markup = types.InlineKeyboardMarkup(btns)
+    if not re.search('test', str(game.board.state.president.user_id)):
+        bot.send_message(game.board.state.president.user_id, game.board.print_board())
+        bot.send_message(game.board.state.president.user_id,
+                        'You have to kill one person. You can discuss your decision with the others. Choose wisely!',
+                        reply_markup=kill_markup)
+
+def action_choose(bot, game):
+    print('action_choose called')
+    strcid = str(game.chat_id)
+    btns = []
+
+    for player in game.get_players():
+        if player != game.board.state.president and player.alive == True:
+            name = player.name
+            btns.append([types.InlineKeyboardButton(name, callback_data=strcid + "_choo_" + str(player.user_id))])
+
+    inspectMarkup = types.InlineKeyboardMarkup(btns)
+    if not re.search('test', str(game.board.state.president.user_id)):
+        bot.send_message(game.board.state.president.user_id, game.board.print_board())
+        bot.send_message(game.board.state.president.user_id,
+                        'You get to choose the next presidential candidate. Afterwards the order resumes back to normal. Choose wisely!',
+                        reply_markup=inspectMarkup)
+
+def action_inspect(bot, game):
+    print('action_inspect called')
+    strcid = str(game.cid)
+    btns = []
+    for player in game.get_players():
+        if player != game.board.state.president.user_id and player.alive == True:
+            name = player.name
+            btns.append([types.InlineKeyboardButton(name, callback_data=strcid + "_insp_" + str(player.user_id))])
+
+    inspectMarkup = types.InlineKeyboardMarkup(btns)
+    if not re.search('test', str(game.board.state.president.user_id)):
+        bot.send_message(game.board.state.president.user_id, game.board.print_board())
+        bot.send_message(game.board.state.president.user_id,
+                        'You may see the party membership of one player. Which do you want to know? Choose wisely!',
+                        reply_markup=inspectMarkup)
+
+def start_next_round(bot, game):
+    print('start_next_round called')
+    # start next round if there is no winner (or /cancel)
+    if game.board.state.game_endcode == 0:
+        # start new round
+        time.sleep(5)
+        # if there is no special elected president in between
+        if game.board.state.chosen_president is None:
+            increment_player_counter(game)
+        start_round(bot, game)
+
+##
+#
+# End of round
+#
+##
+
+def end_game(bot, game, game_endcode):
+    print('end_game called')
+    ##
+    # game_endcode:
+    #   -2  fascists win by electing Blue as chancellor
+    #   -1  fascists win with 6 fascist policies
+    #   0   not ended
+    #   1   liberals win with 5 liberal policies
+    #   2   liberals win by killing Blue
+    #   99  game cancelled
+    #
+   # with open(STATS, 'r') as f:
+    #    stats = json.load(f)
+
+    if game_endcode == 99:
+        if game.board is not None:
+            bot.send_message(game.chat_id,
+                             "Game cancelled!\n\n%s" % game.print_roles())
+            # bot.send_message(ADMIN, "Game of Secret Hitler canceled in group %d" % game.cid)
+           # stats['cancelled'] = stats['cancelled'] + 1
+        else:
+            bot.send_message(game.chat_id, "Game cancelled!")
+    else:
+        if game_endcode == -2:
+            bot.send_message(game.chat_id,
+                             "Game over! The fascists win by electing Hitler as Chancellor!\n\n%s" % game.print_roles())
+            #stats['fascwin_blue'] = stats['fascwin_blue'] + 1
+        if game_endcode == -1:
+            bot.send_message(game.chat_id,
+                             "Game over! The fascists win by enacting 6 fascist policies!\n\n%s" % game.print_roles())
+            #stats['fascwin_policies'] = stats['fascwin_policies'] + 1
+        if game_endcode == 1:
+            bot.send_message(game.chat_id,
+                             "Game over! The liberals win by enacting 5 liberal policies!\n\n%s" % game.print_roles())
+            #stats['libwin_policies'] = stats['libwin_policies'] + 1
+        if game_endcode == 2:
+            bot.send_message(game.chat_id,
+                             "Game over! The liberals win by killing Hitler!\n\n%s" % game.print_roles())
+            #stats['libwin_kill'] = stats['libwin_kill'] + 1
+
+            # bot.send_message(ADMIN, "Game of Secret Blue ended in group %d" % game.cid)
 
 
 def get_membership(role):
     print('get_membership called')
-    if role == "Fascist" or role == "Blue":
+    if role == "Fascist" or role == "Hitler":
         return "fascist"
     elif role == "Liberal":
         return "liberal"
@@ -116,7 +533,7 @@ def inform_fascists(bot, game):
                 if not re.search('test', str(player.user_id)):
                     bot.send_message(player.user_id, "Your fellow fascists are: %s" % fstring)
             if not re.search('test', str(player.user_id)):
-                bot.send_message(player.user_id, "Blue is: %s" % hitler.name)
+                bot.send_message(player.user_id, "Hitler is: %s" % hitler.name)
         elif role == "Hitler":
             if player_number <= 6:
                 fascist = next(p for p in game.get_players() if p.role == "Fascist")

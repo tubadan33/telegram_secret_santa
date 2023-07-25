@@ -8,8 +8,8 @@ from game.game_functions import create_new_game, SecretHitlerGame
 import requests
 from gamecontroller import GamesController
 from game.test_player import TestPlayer
-from game_runner import inform_players, print_player_info, inform_fascists
-
+import game_runner
+import re
 bot = telebot.TeleBot(TOKEN)
 
 games = {}  # a dictionary to store ongoing games
@@ -43,6 +43,184 @@ symbols = [
 bot = telebot.TeleBot(TOKEN)
 bot.set_webhook()
 games = {}
+
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_choose_chancellor_.*", call.data))
+def callback_inline(call):
+    print(f"callback_inline called with data: {call.data}")
+  
+    if call.message:
+        if re.match(r"-?\d+_choose_chancellor_.*", call.data):
+            strcid, _, chosen_uid = call.data.partition('_choose_chancellor_')
+            chat_id = int(strcid)
+            # Get the game instance
+            game = GamesController.get_game(chat_id)
+            
+            # Find the player instance by user ID
+            chosen_chancellor = next((p for p in game.get_players() if p.user_id == chosen_uid), None)
+            
+            if chosen_chancellor is None:
+                bot.answer_callback_query(call.id, text="Unknown player", show_alert=True)
+                return
+            
+            # Assign the chosen player as the nominated chancellor
+            game.board.state.nominated_chancellor = chosen_chancellor
+            
+            # Call the next stage function
+            game_runner.nominate_chosen_chancellor(bot, game)
+
+            # Edit the message for the nominator
+            bot.edit_message_text("You nominated %s as Chancellor!" % game.board.state.nominated_chancellor.name, call.message.chat.id, call.message.message_id)
+
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_vote_\d+_(Ja|Nein)", call.data))
+def callback_vote(call):
+    if call.message:
+        print(f"callback_vote called with data: {call.data}")
+
+        strcid, _, uid_and_vote = call.data.partition('_vote_')
+        uid, _, vote = uid_and_vote.partition('_')
+        chat_id = int(strcid)
+        uid = int(uid)
+        # Get the game instance
+        game = GamesController.get_game(chat_id) 
+        if game is None:
+            bot.answer_callback_query(call.id, text="Game not found", show_alert=True)
+            return
+
+        if uid not in game.votes:
+            game.votes[uid] = vote
+            bot.edit_message_text("Thank you for your vote: %s to a President %s and a Chancellor %s" % (
+                vote, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name), uid,
+                                  call.message.message_id)
+        else:
+            bot.answer_callback_query(call.id, text="You already voted", show_alert=True)
+        print(len(game.votes), " ", len(game.get_players()) )
+        if len(game.votes) == len(game.get_players()):
+            game_runner.count_votes(bot, game)  
+
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_(fascist|liberal)$", call.data))
+def choose_policy(call):
+    print(f"choose_policy called with data: {call.data}")
+    
+    strcid, _, answer = call.data.partition('_')
+    chat_id = int(strcid)
+
+    # Get the game instance
+    game = GamesController.get_game(chat_id)  # Replace this with your actual method to retrieve the game instance by chat ID
+    print(f"drawn_policies before processing: {game.board.state.drawn_policies}")
+
+    if len(game.board.state.drawn_policies) == 3:
+        # remove policy from drawn cards and add to discard pile, pass the other two policies
+        discard_policy_index = None
+        for i in range(3):
+            if game.board.state.drawn_policies[i] == answer:
+                discard_policy_index = i
+                break
+        if discard_policy_index is not None:
+            game.board.discards.append(game.board.state.drawn_policies.pop(discard_policy_index))
+        game_runner.pass_two_policies(bot, game)
+    elif len(game.board.state.drawn_policies) == 2:
+        if answer == "veto":
+            # handle the veto request
+            game_runner.choose_veto(bot, game, call.from_user.id, answer)
+        else:
+            # remove policy from drawn cards and enact, discard the other card
+            for i in range(2):
+                if game.board.state.drawn_policies[i] == answer:
+                    game.board.state.drawn_policies.pop(i)
+                    break
+            game.board.discards.append(game.board.state.drawn_policies.pop(0))
+            assert len(game.board.state.drawn_policies) == 0
+            game_runner.enact_policy(bot, game, answer, False)
+    else:
+        print(f"choose_policy: drawn_policies should be 3 or 2, but was {len(game.board.state.drawn_policies)}")
+
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_kill_\d+$", call.data))
+def choose_kill(call):
+    print(f"choose_kill called with data: {call.data}")
+    
+    strcid, _, answer = call.data.partition('_kill_')
+    chat_id = int(strcid)
+    player_to_kill_id = int(answer)
+
+    game = GamesController.get_game(chat_id) 
+
+    player_to_kill = None
+    for player in game.players:
+        if player.id == player_to_kill_id:
+            player_to_kill = player
+            break
+
+    if not player_to_kill:
+        print(f"choose_kill: Player {player_to_kill_id} not found in game {chat_id}")
+        return
+
+    player_to_kill.alive = False
+    if game.player_sequence.index(player_to_kill) <= game.board.state.player_counter:
+        game.board.state.player_counter -= 1
+    game.player_sequence.remove(player_to_kill)
+    game.board.state.dead += 1
+    print(f"Player {call.from_user.first_name} ({call.from_user.id}) killed {player_to_kill.name} ({player_to_kill.id})")
+
+    bot.send_message(chat_id, f"You killed {player_to_kill.name}!")
+
+    if player_to_kill.role == "Hitler":
+        bot.send_message(chat_id, f"President {game.board.state.president.name} killed {player_to_kill.name}. ")
+        game_runner.end_game(bot, game, 2)
+    else:
+        bot.send_message(chat_id,
+                         f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Hitler. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!")
+        bot.send_message(chat_id, game.board.print_board())
+        game_runner.start_next_round(bot, game)
+
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_choo_\d+$", call.data))
+def choose_choose(call):
+    print(f"choose_choose called with data: {call.data}")
+    
+    strcid, _, struid = call.data.partition('_choo_')
+    chat_id = int(strcid)
+    chosen_user_id = int(struid)
+
+    # Get the game instance
+    game = GamesController.get_game(chat_id)  # Replace this with your actual method to retrieve the game instance by chat ID
+
+    chosen_player = next((player for player in game.players if player.user_id == chosen_user_id), None)
+    if chosen_player is None:
+        print(f"choose_choose: Player with user_id {chosen_user_id} not found")
+        return
+
+    game.board.state.chosen_president = chosen_player
+    if not re.search('test', str(chosen_player.user_id)):
+        bot.send_message(call.from_user.id, f"You chose {chosen_player.name} as the next president!")
+        bot.send_message(game.chat_id, f"President {game.board.state.president.name} chose {chosen_player.name} as the next president.")
+    game_runner.start_next_round(bot, game)
+
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_(.*insp)$", call.data))
+def choose_inspect(call):
+    print('choose_inspect called')
+    strcid, _, answer = call.data.partition('_insp_')
+    chat_id = int(strcid)
+
+    # Get the game instance
+    game = GamesController.get_game(chat_id)  # Replace this with your actual method to retrieve the game instance by chat ID
+
+    chosen = next((player for player in game.players if str(player.id) == answer), None)
+    if chosen is not None:
+        print(f"Player {call.from_user.first_name} ({call.from_user.id}) inspects {chosen.name} ({chosen.id})'s party membership ({chosen.party})")
+
+        # For a real game, you may want to send the party membership privately to the inspecting user, not print it
+        # bot.send_message(call.from_user.id, f"The party membership of {chosen.name} is {chosen.party}")
+
+        if not re.search('test', str(chosen.id)):
+            bot.send_message(game.chat_id, f"President {game.board.state.president.name} inspected {chosen.name}.")
+
+        game_runner.start_next_round(bot, game)
+    else:
+        print("choose_inspect: The chosen player was not found in the game!")
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_catchall(call):
+    print(f"Catch-all handler received data: {call.data}")
 
 @bot.message_handler(commands=['help'])
 def help(message):

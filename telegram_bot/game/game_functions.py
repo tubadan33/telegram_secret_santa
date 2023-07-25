@@ -3,6 +3,7 @@ from game.player import Player
 from constants.Cards import playerSets
 from constants.Cards import policies
 import random
+import time
 from game.test_player import TestPlayer
 import game_runner 
 from gamecontroller import GamesController
@@ -13,6 +14,8 @@ class SecretHitlerGame:
         self.initiator_id = initiator_id 
         self.players = {}
         self.player_sequence = []
+        self.datainvote = None
+        self.votes = {} 
         self.game_phase = "waiting_for_players"
         self.board = None  # Board will be initialized later
         self.policy_deck = policies.copy()  # copies the original policies deck
@@ -68,6 +71,14 @@ class SecretHitlerGame:
             
     def get_board(self):
         return self.board
+    
+    def get_players_alive(self):
+        players_alive = []
+        players = self.get_players()
+        for player in players:
+            if player.alive:
+                players_alive.append(player)
+        return players_alive
 
 def create_new_game(player_count=None):
     return SecretHitlerGame(player_count)
