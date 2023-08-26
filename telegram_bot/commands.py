@@ -5,21 +5,22 @@ import telebot
 from game.player import Player
 from game.board import Board
 from game.game_functions import create_new_game, SecretHitlerGame
-import requests
+import datetime
 from gamecontroller import GamesController
 from game.test_player import TestPlayer
 import game_runner
 import re
+import pickle
 bot = telebot.TeleBot(TOKEN)
 
-games = {}  # a dictionary to store ongoing games
+#games = {}  # a dictionary to store ongoing games
 
 
 commands = [  # command description used in the "help" command
     '/help - Gives you information about the available commands',
-    '/start - Gives you a short piece of information about Secret Blue',
+    '/start - Gives you a short piece of information about Secret Hitler',
     '/symbols - Shows you all possible symbols of the board',
-    '/rules - Gives you a link to the official Secret Blue rules',
+    '/rules - Gives you a link to the official Secret Hitler rules',
     '/newgame - Creates a new game',
     '/join - Joins an existing game',
     '/startgame - Starts an existing game when all players have joined',
@@ -42,45 +43,55 @@ symbols = [
 
 bot = telebot.TeleBot(TOKEN)
 bot.set_webhook()
-games = {}
 
-@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_choose_chancellor_.*", call.data))
-def callback_inline(call):
-    print(f"callback_inline called with data: {call.data}")
-  
-    if call.message:
-        if re.match(r"-?\d+_choose_chancellor_.*", call.data):
-            strcid, _, chosen_uid = call.data.partition('_choose_chancellor_')
-            chat_id = int(strcid)
-            # Get the game instance
-            game = GamesController.get_game(chat_id)
-            
-            # Find the player instance by user ID
-            chosen_chancellor = next((p for p in game.get_players() if p.user_id == chosen_uid), None)
-            
-            if chosen_chancellor is None:
-                bot.answer_callback_query(call.id, text="Unknown player", show_alert=True)
-                return
-            
-            # Assign the chosen player as the nominated chancellor
-            game.board.state.nominated_chancellor = chosen_chancellor
-            
-            # Call the next stage function
-            game_runner.nominate_chosen_chancellor(bot, game)
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\w+_choose_chancellor_.*", call.data))
+def callback_choose_chancellor(call):
+    print(f"USER SELECTED CHANCELLOR: {call.data}")
+    strcid, _, chosen_uid = call.data.partition('_choose_chancellor_')
+    print(f"Checking player with user_id: {chosen_uid}")
+    chat_id = int(strcid)
+    is_test_player = re.search('test', chosen_uid)
+    print(f"Attempting to get game with chat_id: {chat_id}")
+    game = GamesController.get_game(chat_id)
+    if game is None:
+        print(f"No game found with chat_id: {chat_id}")
+        return
+    print(f"Game found with chat_id: {chat_id}")
+    if call.from_user.id != game.player_sequence[game.turn].user_id:
+        bot.answer_callback_query(call.id, text="It is not your turn to nominate a chancellor", show_alert=True)
+        return
+    if game.board is None:
+        print("Game's board is None!")
+        return
+    print("Game's board is not None, proceeding to nominate_chosen_chancellor")
+    chosen_chancellor = None
+    for p in game.get_players():
+        print("TYPE: " , type(p.user_id))
+    if is_test_player:
+        chosen_chancellor = next((p for p in game.get_players() if p.user_id == chosen_uid), None) 
+    else:
+        chosen_chancellor = next((p for p in game.get_players() if p.user_id == int(chosen_uid)), None)
+    if chosen_chancellor is None:
+        bot.answer_callback_query(call.id, text="Unknown player", show_alert=True)
+        print("CHANCELLOR ERROR:", chosen_chancellor)
+        return
+    print("CHOSEN CHANCELLOR: ", chosen_chancellor)
+    game.board.state.nominated_chancellor = chosen_chancellor
+    # Call the next stage function
+    game_runner.nominate_chosen_chancellor(bot, game)
 
-            # Edit the message for the nominator
-            bot.edit_message_text("You nominated %s as Chancellor!" % game.board.state.nominated_chancellor.name, call.message.chat.id, call.message.message_id)
-
+    # Edit the message for the nominator
+    bot.edit_message_text("You nominated %s as Chancellor!" % game.board.state.nominated_chancellor.name, call.message.chat.id, call.message.message_id)
+    
 @bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_vote_\d+_(Ja|Nein)", call.data))
 def callback_vote(call):
     if call.message:
-        print(f"callback_vote called with data: {call.data}")
+        print(f"USER callback_vote called with data: {call.data}")
 
         strcid, _, uid_and_vote = call.data.partition('_vote_')
         uid, _, vote = uid_and_vote.partition('_')
         chat_id = int(strcid)
         uid = int(uid)
-        # Get the game instance
         game = GamesController.get_game(chat_id) 
         if game is None:
             bot.answer_callback_query(call.id, text="Game not found", show_alert=True)
@@ -88,14 +99,20 @@ def callback_vote(call):
 
         if uid not in game.votes:
             game.votes[uid] = vote
+            if game.board.state.nominated_president is None:
+                print("Nominated president is None!")
+                return
+
+            if game.board.state.nominated_chancellor is None:
+                print("Nominated chancellor is None!")
+                return
             bot.edit_message_text("Thank you for your vote: %s to a President %s and a Chancellor %s" % (
                 vote, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name), uid,
                                   call.message.message_id)
         else:
             bot.answer_callback_query(call.id, text="You already voted", show_alert=True)
         print(len(game.votes), " ", len(game.get_players()) )
-        if len(game.votes) == len(game.get_players()):
-            game_runner.count_votes(bot, game)  
+        game_runner.start_bot_voting(bot, game)
 
 @bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_(fascist|liberal)$", call.data))
 def choose_policy(call):
@@ -105,8 +122,7 @@ def choose_policy(call):
     chat_id = int(strcid)
 
     # Get the game instance
-    game = GamesController.get_game(chat_id)  # Replace this with your actual method to retrieve the game instance by chat ID
-    print(f"drawn_policies before processing: {game.board.state.drawn_policies}")
+    game = GamesController.get_game(chat_id)  
 
     if len(game.board.state.drawn_policies) == 3:
         # remove policy from drawn cards and add to discard pile, pass the other two policies
@@ -117,6 +133,7 @@ def choose_policy(call):
                 break
         if discard_policy_index is not None:
             game.board.discards.append(game.board.state.drawn_policies.pop(discard_policy_index))
+        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id) 
         game_runner.pass_two_policies(bot, game)
     elif len(game.board.state.drawn_policies) == 2:
         if answer == "veto":
@@ -130,17 +147,21 @@ def choose_policy(call):
                     break
             game.board.discards.append(game.board.state.drawn_policies.pop(0))
             assert len(game.board.state.drawn_policies) == 0
+            bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id) 
             game_runner.enact_policy(bot, game, answer, False)
     else:
         print(f"choose_policy: drawn_policies should be 3 or 2, but was {len(game.board.state.drawn_policies)}")
 
-@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_kill_\d+$", call.data))
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\w+_kill_\w+$", call.data))
 def choose_kill(call):
     print(f"choose_kill called with data: {call.data}")
     
     strcid, _, answer = call.data.partition('_kill_')
     chat_id = int(strcid)
-    player_to_kill_id = int(answer)
+    if answer.startswith('test'):
+        player_to_kill_id = answer  # 'test2'
+    else:
+        player_to_kill_id = int(answer) 
 
     game = GamesController.get_game(chat_id) 
 
@@ -172,17 +193,15 @@ def choose_kill(call):
         bot.send_message(chat_id, game.board.print_board())
         game_runner.start_next_round(bot, game)
 
-@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_choo_\d+$", call.data))
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\w+_choo_\w+$", call.data))
 def choose_choose(call):
     print(f"choose_choose called with data: {call.data}")
     
     strcid, _, struid = call.data.partition('_choo_')
     chat_id = int(strcid)
     chosen_user_id = int(struid)
-
     # Get the game instance
-    game = GamesController.get_game(chat_id)  # Replace this with your actual method to retrieve the game instance by chat ID
-
+    game = GamesController.get_game(chat_id) 
     chosen_player = next((player for player in game.players if player.user_id == chosen_user_id), None)
     if chosen_player is None:
         print(f"choose_choose: Player with user_id {chosen_user_id} not found")
@@ -194,15 +213,12 @@ def choose_choose(call):
         bot.send_message(game.chat_id, f"President {game.board.state.president.name} chose {chosen_player.name} as the next president.")
     game_runner.start_next_round(bot, game)
 
-@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_(.*insp)$", call.data))
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\w+_(.*insp)$", call.data))
 def choose_inspect(call):
     print('choose_inspect called')
     strcid, _, answer = call.data.partition('_insp_')
     chat_id = int(strcid)
-
-    # Get the game instance
-    game = GamesController.get_game(chat_id)  # Replace this with your actual method to retrieve the game instance by chat ID
-
+    game = GamesController.get_game(chat_id)  
     chosen = next((player for player in game.players if str(player.id) == answer), None)
     if chosen is not None:
         print(f"Player {call.from_user.first_name} ({call.from_user.id}) inspects {chosen.name} ({chosen.id})'s party membership ({chosen.party})")
@@ -234,12 +250,27 @@ def help(message):
 @bot.message_handler(commands=['start'])
 def start_game(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "\"Secret Blue is a social deduction game for 5-10 people about finding and stopping the Secret Blue."
+    bot.send_message(chat_id, "\"Secret Hitler is a social deduction game for 5-10 people about finding and stopping the Secret Hitler."
                      " The majority of players are liberals. If they can learn to trust each other, they have enough "
                      "votes to control the table and win the game. But some players are fascists. They will say whatever "
                      "it takes to get elected, enact their agenda, and blame others for the fallout. The liberals must "
                      "work together to discover the truth before the fascists install their cold-blooded leader and win "
-                     "the game.\"\n- official description of Secret Blue\n\nAdd me to a group and type /newgame to create a game!")
+                     "the game.\"\n- official description of Secret Hitler\n\nAdd me to a group and type /newgame to create a game!")
+
+@bot.message_handler(commands=['restart'])
+def load_crashed_game(message):
+    chat_id = message.chat.id
+    game = GamesController.get_game(chat_id)
+    print(game.get_game_phase())
+    if game.get_game_phase() != "waiting_for_players":
+        bot.send_message(chat_id, "Game has started, cannot load prior game instance.")
+    else:
+        with open("state_save/game_state.pkl", "rb") as file:
+            GamesController.load_game_state(chat_id)
+            game = GamesController.get_game(chat_id)
+            bot.send_message(chat_id, "Setting up prior game state...")
+            game_runner.start_next_round(bot, game)
+
 
 
 
@@ -266,7 +297,7 @@ def start_game(message):
     elif game.game_phase == "game_started":
         bot.send_message(chat_id, "The game is already running!")
         #and not is_admin(message.from_user.id, chat_id)
-    elif message.from_user.id != game.initiator_id: 
+    elif message.from_user.id != game.initiator_id and bot.getChatMember(chat_id, message.from_user.id).status not in ("administrator", "creator"): 
         bot.send_message(chat_id, "Only the initiator of the game or a group admin can start the game with /startgame")
     elif len(game.players) < 5:
         if TEST:
@@ -283,33 +314,44 @@ def join(message):
     groupType = message.chat.type
     game = GamesController.get_game(chat_id)
     fname = message.from_user.first_name
+    uid = message.from_user.id
 
     if groupType not in ['group', 'supergroup']:
         bot.send_message(chat_id, "You have to add me to a group first and type /newgame there!")
-    elif not game:
-        bot.send_message(chat_id, "There is no game in this chat. Create a new game with /newgame")
-    elif game.game_phase != "waiting_for_players":
-        bot.send_message(chat_id, "The game has started. Please wait for the next game!")
-    elif message.from_user.id in game.players:
-        bot.send_message(chat_id, "You already joined the game, %s!" % fname)
-    elif len(game.players) >= 10:
-        bot.send_message(chat_id, "You have reached the maximum amount of players. Please start the game with /startgame!")
-    else:
-        uid = message.from_user.id
-        game.add_player(uid, fname)
-        try:
-            bot.send_message(uid, f"You joined a game in {group_name}. I will soon tell you your secret role.")
-        except Exception:
-            bot.send_message(chat_id, 
-                             fname + ", I can't send you a private message. Please go to Bot's chat and click 'Start'.\nYou then need to send /join again.")
-        else:
-            if len(game.players) > 4:
-                bot.send_message(chat_id, 
-                                 fname + " has joined the game. Type /startgame if this was the last player and you want to start with %d players!" % len(game.players))
-            else:
-                bot.send_message(chat_id, 
-                                 "%s has joined the game. There are currently %d players in the game and you need 5-10 players." % (fname, len(game.players)))
+        return  # Exit the function here
 
+    if not game:
+        bot.send_message(chat_id, "There is no game in this chat. Create a new game with /newgame")
+        return
+
+    if game.game_phase != "waiting_for_players":
+        bot.send_message(chat_id, "The game has started. Please wait for the next game!")
+        return
+
+    if uid in game.players:
+        bot.send_message(chat_id, "You already joined the game, %s!" % fname)
+        return
+
+    if len(game.players) >= 10:
+        bot.send_message(chat_id, "You have reached the maximum amount of players. Please start the game with /startgame!")
+        return
+    
+    try:
+        bot.send_message(uid, f"You joined a game in {group_name}. I will soon tell you your secret role.")
+        # If all conditions are passed, add the player
+        game.add_player(uid, fname)
+    except Exception:
+        bot.send_message(chat_id, 
+                         fname + ", I can't send you a private message. Please go to Bot's chat and click 'Start'.\nYou then need to send /join again.")
+        
+    else:
+        if len(game.players) > 4:
+            bot.send_message(chat_id, 
+                             fname + " has joined the game. Type /startgame if this was the last player and you want to start with %d players!" % len(game.players))
+        else:
+            bot.send_message(chat_id, 
+                             "%s has joined the game. There are currently %d players in the game and you need 5-10 players." % (fname, len(game.players)))
+            
 @bot.message_handler(commands=['cancelgame'])
 def cancel_game(message):
     chat_id = message.chat.id
@@ -345,5 +387,30 @@ def send_symbols(message):
     chat_id = message.chat.id
     symbols_text = "Here are the game symbols:\n" + "\n".join(symbols)
     bot.send_message(chat_id, symbols_text)
+
+@bot.message_handler(commands=['calltovote'])
+def calltovote(message):
+    try:
+        chat_id = message.chat.id
+        if chat_id in GamesController.games.keys():
+            game = GamesController.games.get(chat_id, None)
+            if not game.dateinitvote:
+                bot.send_message(chat_id, "The voting didn't start yet.")
+            else:
+                start = game.dateinitvote
+                stop = datetime.datetime.now()
+                elapsed = stop - start
+                if elapsed > datetime.timedelta(minutes=0):
+                    history_text = ""
+                    for player in game.player_sequence:
+                        if player.user_id not in game.votes:
+                            history_text += f"It's time to vote [{game.get_player_name_by_id(player.user_id)}](tg://user?id={player.user_id}).\n"
+                    bot.send_message(chat_id, text=history_text, parse_mode='Markdown')
+                else:
+                    bot.send_message(chat_id, "Five minutes must pass to see call to vote")
+        else:
+            bot.send_message(chat_id, "There is no game in this chat. Create a new game with /newgame")
+    except Exception as e:
+        bot.send_message(chat_id, str(e))
 
 bot.infinity_polling()

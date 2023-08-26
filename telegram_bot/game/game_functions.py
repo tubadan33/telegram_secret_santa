@@ -6,7 +6,6 @@ import random
 import time
 from game.test_player import TestPlayer
 import game_runner 
-from gamecontroller import GamesController
 
 class SecretHitlerGame:
     def __init__(self, chat_id, initiator_id, player_count=None):
@@ -14,17 +13,19 @@ class SecretHitlerGame:
         self.initiator_id = initiator_id 
         self.players = {}
         self.player_sequence = []
-        self.datainvote = None
+        self.upcoming_turns = []
+        self.dateinitvote = None
         self.votes = {} 
         self.game_phase = "waiting_for_players"
-        self.board = None  # Board will be initialized later
-        self.policy_deck = policies.copy()  # copies the original policies deck
-        random.shuffle(self.policy_deck)  # shuffles the deck
-        self.policies_in_play = []  # holds policies that are currently in play
-        self.liberal_policies_passed = 0  # keeps count of liberal policies passed
-        self.fascist_policies_passed = 0  # keeps count of fascist policies passed
-        self.fascist_track_actions = None  # Will be set when player count is known
-        self.player_count = player_count  # It can be None at this point
+        self.board = None 
+        self.policy_deck = policies.copy()  
+        random.shuffle(self.policy_deck)  
+        self.policies_in_play = []  
+        self.liberal_policies_passed = 0  
+        self.fascist_policies_passed = 0  
+        self.fascist_track_actions = None  
+        self.player_count = player_count 
+        self.turn = None 
 
     def set_player_count(self, player_count):
         self.player_count = player_count
@@ -36,27 +37,42 @@ class SecretHitlerGame:
         self.players[user_id] = player
         self.player_sequence.append(player)
 
+    def get_game_phase(self):
+        return self.game_phase
+
     def get_players(self):
         return list(self.players.values())
+    
+    def get_player_name_by_id(self, user_id):
+        for player in self.get_players():
+            if player.user_id == user_id:
+                return player.name
+        return None  
+
 
     def start_game(self, bot, game):
         self.game_phase = "game_started"
+        self.upcoming_turns = self.player_sequence.copy() 
         self.set_player_count(len(self.players)) 
         self.assign_roles()
 
         player_number = len(self.get_players())
-        
-        # Inform players and fascists about their roles
         game_runner.inform_players(bot, game)
         game_runner.inform_fascists(bot, game)
-        
-        random.shuffle(self.player_sequence)  # shuffle player order at the start
-        
-        # Start a new round
+
+        random.shuffle(self.player_sequence) 
+        self.upcoming_turns = self.player_sequence.copy()  
+
         game_runner.start_round(bot, game)
 
         return "The game has started!"
     
+    def next_turn(self):
+        if len(self.upcoming_turns) == 0:
+            self.upcoming_turns = self.player_sequence.copy()  # Refresh the turn queue when it's empty
+        next_player = self.upcoming_turns.pop(0)  # Dequeue the next player
+        self.board.state.nominated_president = next_player  # Ensure the nominated president is always the current player
+        return next_player
     def assign_roles(self):
         roles = playerSets[len(self.players)]["roles"]
         random.shuffle(roles)
@@ -79,6 +95,18 @@ class SecretHitlerGame:
             if player.alive:
                 players_alive.append(player)
         return players_alive
-
+    
+    def print_roles(self):
+        rtext = ""
+        if self.board is None:
+            return rtext
+        else:
+            for player in self.get_players():
+                rtext += player.name + "'s "
+                if not player.alive:
+                    rtext += "(dead) "
+                rtext += "secret role was " + player.role + "\n"
+            return rtext
+        
 def create_new_game(player_count=None):
     return SecretHitlerGame(player_count)
