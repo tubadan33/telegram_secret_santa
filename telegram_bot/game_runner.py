@@ -7,12 +7,12 @@ import datetime
 import time
 import re
 from config import TEST
+from apscheduler.schedulers.background import BackgroundScheduler
+
+scheduler = BackgroundScheduler()
+scheduler.start()
 
 def start_round(bot, game):
-    print("saving game state with players: ")
-    for p in game.get_players():
-        print(p.name, p.role)
-    GamesController.save_game_state(game.chat_id)
     print('start_round called')
     # If there's no specially chosen president, increment the player counter
     if game.turn is None:
@@ -107,6 +107,25 @@ def nominate_chosen_chancellor(bot, game):
         print("Exception message: " + str(e))
         print("Traceback: " + str(traceback.format_exc()))
 
+def vote_timeout(bot, game, msg):
+    if game.dateinitvote:
+        start = game.dateinitvote
+        stop = datetime.datetime.now()
+        elapsed = stop - start
+        print(elapsed)
+
+        if elapsed > datetime.timedelta(minutes=1):
+            # Find players who haven't voted
+            for player in game.get_players():
+                if player.user_id not in game.votes and player.alive and not re.search('test', str(player.user_id)):
+                    game.votes[player.user_id] = "Nein"
+                    try:
+                        bot.edit_message_text("You didn't vote in time. A default vote of 'Nein' was cast on your behalf.", player.user_id, msg.message_id)
+                        print(len(game.votes), " ", len(game.get_players()) )
+                        start_bot_voting(bot, game)
+                    except Exception as e:
+                        print(f"Error editing message for user {player.user_id}: {e}")
+
 def check_and_count_votes(bot, game):
     if len(game.votes) == len(game.get_players()):
         count_votes(bot, game)
@@ -132,10 +151,14 @@ def vote(bot, game):
         voteMarkup = types.InlineKeyboardMarkup(btns)
         
         bot.send_message(player.user_id, game.board.print_board())
-        bot.send_message(player.user_id,
-                         "Do you want to elect President %s and Chancellor %s?" % (
-                             game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name),
-                         reply_markup=voteMarkup)
+        vote_message = bot.send_message(player.user_id,
+                            "Do you want to elect President %s and Chancellor %s?" % (
+                                game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name),
+                            reply_markup=voteMarkup)
+    scheduler.add_job(vote_timeout, 'date', run_date=game.dateinitvote + datetime.timedelta(minutes=1), args=[bot, game, vote_message])
+    #scheduler.add_job(vote_timeout, 'date', run_date=game.dateinitvote + datetime.timedelta(minutes=1), args=[bot, game, msg])
+
+        
         
 def start_bot_voting(bot,game):
     for player in game.get_players():
@@ -545,11 +568,12 @@ def action_inspect(bot, game):
 
 def start_next_round(bot, game):
     print('start_next_round called')
-    # start next round if there is no winner (or /cancel)
+    print("saving game state with players: ")
+    for p in game.get_players():
+        print(p.name, p.role)
+    GamesController.save_game_state(game.chat_id)
     if game.board.state.game_endcode == 0:
-        # start new round
         time.sleep(5)
-        # if there is no special elected president in between
         if game.board.state.chosen_president is None:
             game.next_turn()
         start_round(bot, game)
