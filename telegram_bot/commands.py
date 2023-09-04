@@ -78,7 +78,7 @@ def callback_choose_chancellor(call):
         bot.answer_callback_query(call.id, text="Unknown player", show_alert=True)
         print("CHANCELLOR ERROR:", chosen_chancellor)
         return
-    print("CHOSEN CHANCELLOR: ", chosen_chancellor)
+    print("CHOSEN CHANCELLOR: ", chosen_chancellor.name)
     game.board.state.nominated_chancellor = chosen_chancellor
     # Call the next stage function
     game_runner.nominate_chosen_chancellor(bot, game)
@@ -99,11 +99,6 @@ def callback_vote(call):
         if game is None:
             bot.answer_callback_query(call.id, text="Game not found", show_alert=True)
             return
-        # Check for elapsed time since vote initialization
-        start = game.dateinitvote
-        stop = datetime.datetime.now()
-        elapsed = stop - start
-    
         if uid not in game.votes:
             game.votes[uid] = vote
             if game.board.state.nominated_president is None:
@@ -116,10 +111,17 @@ def callback_vote(call):
             bot.edit_message_text("Thank you for your vote: %s to a President %s and a Chancellor %s" % (
                 vote, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name), uid,
                                 call.message.message_id)
+                    # After the vote has been recorded, cancel the timer for this user
+            timer = game.get_user_timer(uid)
+            if timer:
+                timer.cancel()
+                del timer
+                game.delete_user_timer(uid)
             
-        else:
+        else: 
             bot.answer_callback_query(call.id, text="You already voted", show_alert=True)
         print(len(game.votes), " ", len(game.get_players()) )
+        print("STARTING CALLBACK BOT VOTING")
         game_runner.start_bot_voting(bot, game)
 
 @bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_(fascist|liberal)$", call.data))

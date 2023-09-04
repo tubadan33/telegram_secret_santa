@@ -7,14 +7,13 @@ import datetime
 import time
 import re
 from config import TEST
+import threading
 from apscheduler.schedulers.background import BackgroundScheduler
-
+test_timeout = False
 scheduler = BackgroundScheduler()
 scheduler.start()
-
 def start_round(bot, game):
     print('start_round called')
-    # If there's no specially chosen president, increment the player counter
     if game.turn is None:
         game.turn = 0
     elif game.board.state.chosen_president is None:
@@ -73,58 +72,49 @@ def choose_chancellor(bot, game):
                     print(f"Simulating callback with data: {strcid}, {player.user_id}")
                     # Find the player instance by user ID
                     chosen_chancellor = next((p for p in game.get_players() if p.user_id == player.user_id), None)
-                    print("CHOSEN BOT CHANCELLOR: ", chosen_chancellor)
+                    print("CHOSEN BOT CHANCELLOR: ", chosen_chancellor.name)
                     if chosen_chancellor is None:
                         print("Unknown player")
                         return
-                    # Assign the chosen player as the nominated chancellor
                     game.board.state.nominated_chancellor = chosen_chancellor
-                    # Call the next stage function
                     if game.board.state.nominated_chancellor is not None:
                         print("You nominated %s as Chancellor!" % game.board.state.nominated_chancellor.name)
                     else:
                         print("Error: No suitable player found to nominate as chancellor")
                     nominate_chosen_chancellor(bot, game)
-                    # Print the message for the nominator
                     break
 def nominate_chosen_chancellor(bot, game):
     print('TEST PLAYER nominate_chosen_chancellor called')
-    try:
-        print("President %s (%s) nominated %s (%s)" % (
-            game.board.state.nominated_president.name, game.board.state.nominated_president.user_id,
-            game.board.state.nominated_chancellor.name, game.board.state.nominated_chancellor.user_id))
-        #if not re.search('test', str(game.board.state.nominated_president.user_id)):
-        bot.send_message(game.chat_id,
-                            "President %s nominated %s as Chancellor. Please vote now!" % (
-                                game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
-                                
-        vote(bot, game)
-    except AttributeError as e:
-        print("nominate_chosen_chancellor: Game or board should not be None! Error: " + str(e))
-    except Exception as e:
-        import traceback
-        print("Exception type: " + str(type(e)))
-        print("Exception message: " + str(e))
-        print("Traceback: " + str(traceback.format_exc()))
+    print("President %s (%s) nominated %s (%s)" % (
+        game.board.state.nominated_president.name, game.board.state.nominated_president.user_id,
+        game.board.state.nominated_chancellor.name, game.board.state.nominated_chancellor.user_id))
+    #if not re.search('test', str(game.board.state.nominated_president.user_id)):
+    bot.send_message(game.chat_id,
+                        "President %s nominated %s as Chancellor. Please vote now!" % (
+                            game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
+                            
+    vote(bot, game)
 
-def vote_timeout(bot, game, msg):
-    if game.dateinitvote:
-        start = game.dateinitvote
-        stop = datetime.datetime.now()
-        elapsed = stop - start
-        print(elapsed)
 
-        if elapsed > datetime.timedelta(minutes=1):
-            # Find players who haven't voted
-            for player in game.get_players():
-                if player.user_id not in game.votes and player.alive and not re.search('test', str(player.user_id)):
-                    game.votes[player.user_id] = "Nein"
-                    try:
-                        bot.edit_message_text("You didn't vote in time. A default vote of 'Nein' was cast on your behalf.", player.user_id, msg.message_id)
-                        print(len(game.votes), " ", len(game.get_players()) )
-                        start_bot_voting(bot, game)
-                    except Exception as e:
-                        print(f"Error editing message for user {player.user_id}: {e}")
+def handle_vote_timeout(bot, player, game):
+    # Check if the user has already voted
+    if player.user_id not in game.votes:
+        # Cast a random vote
+        random_vote = random.choice(["Ja", "Nein"])
+        game.votes[player.user_id] = random_vote
+        message_id = game.vote_messages.get(player.user_id)
+        print(message_id)
+        if message_id:
+            bot.edit_message_text(chat_id=player.user_id, message_id=message_id,
+                                    text="You took too long to vote. A random vote was casted for you.")
+        timer = game.get_user_timer(player.user_id)
+        game.clear_vote_messages()
+        timer.cancel()
+        game.delete_user_timer(player.user_id)
+        print("Cleared Timer")
+        start_bot_voting(bot, game)
+        timer.cancel()
+        del timer
 
 def check_and_count_votes(bot, game):
     if len(game.votes) == len(game.get_players()):
@@ -132,6 +122,7 @@ def check_and_count_votes(bot, game):
 
 def vote(bot, game):
     print('vote called')
+    
     game.dateinitvote = datetime.datetime.now()
     strcid = str(game.chat_id)
     bot_throttle = 8
@@ -155,12 +146,15 @@ def vote(bot, game):
                             "Do you want to elect President %s and Chancellor %s?" % (
                                 game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name),
                             reply_markup=voteMarkup)
-    scheduler.add_job(vote_timeout, 'date', run_date=game.dateinitvote + datetime.timedelta(minutes=1), args=[bot, game, vote_message])
-    #scheduler.add_job(vote_timeout, 'date', run_date=game.dateinitvote + datetime.timedelta(minutes=1), args=[bot, game, msg])
+        print("MESSAGE ID: ", vote_message.message_id)
+        game.vote_messages[player.user_id] = vote_message.message_id
+        timer = threading.Timer(30, handle_vote_timeout, args=[bot, player, game])
+        timer.start()
+        game.set_user_timer(player.user_id, timer)
 
         
-        
 def start_bot_voting(bot,game):
+    print("STARTING BOT VOTING")
     for player in game.get_players():
         if  re.search('test', str(player.user_id)):
             if player.alive:
@@ -189,7 +183,7 @@ def count_votes(bot, game):
     game.dateinitvote = None
     voting_text = ""
     voting_success = False
-    for player in game.get_players():
+    for player in game.player_sequence:
         if game.votes[player.user_id] == "Ja":
             voting_text += player.name + " voted Ja!\n"
         elif game.votes[player.user_id] == "Nein":
@@ -201,10 +195,9 @@ def count_votes(bot, game):
             game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name)
         game.board.state.chancellor = game.board.state.nominated_chancellor
         game.board.state.president = game.board.state.nominated_president
-    
-        bot.send_message(game.chat_id, voting_text)  # Send the message before setting to None
         game.board.state.nominated_president = None
         game.board.state.nominated_chancellor = None
+        bot.send_message(game.chat_id, voting_text)  # Send the message before setting to None
         voting_success = True
         voting_aftermath(bot, game, voting_success)
         # Set nominated_president and nominated_chancellor to None after they're no longer needed
@@ -212,12 +205,11 @@ def count_votes(bot, game):
 
     else:
         print("Voting failed")
-        game.votes.clear()
         print("GAMES VOTES CLEARED: ", game.votes)
         voting_text += "The people didn't like the two candidates!"
         print("SETTING PRES CHANCE TO NONE during FAILED")       
-       # game.board.state.nominated_president = None
-        #game.board.state.nominated_chancellor = None
+        game.board.state.nominated_president = None
+        game.board.state.nominated_chancellor = None
         game.board.state.failed_votes += 1
         bot.send_message(game.chat_id, voting_text)
         if game.board.state.failed_votes == 3:
@@ -225,12 +217,11 @@ def count_votes(bot, game):
 
         else:
             voting_aftermath(bot, game, voting_success)
-            game.board.state.nominated_president = None
-            game.board.state.nominated_chancellor = None
 
 def voting_aftermath(bot, game, voting_success):
     print('voting_aftermath called')
     game.board.state.last_votes = {}
+    game.votes.clear()
     if voting_success:
         if game.board.state.fascist_track >= 3 and game.board.state.chancellor.role == "Hitler":
             # fascists win, because Hitler was elected as chancellor after 3 fascist policies
@@ -244,8 +235,7 @@ def voting_aftermath(bot, game, voting_success):
             draw_policies(bot, game)
     else:
         bot.send_message(game.chat_id, game.board.print_board())
-        start_round(bot, game)  # Start a new round directly instead of calling start_next_round
-    game.votes.clear()
+        start_next_round(bot, game)  # Start a new round directly instead of calling start_next_round
 
 def draw_policies(bot, game):
     print('draw_policies called')
@@ -442,19 +432,28 @@ def do_anarchy(bot, game):
 def action_policy(bot, game):
     print('action_policy called')
     topPolicies = ""
+    
     # shuffle discard pile with rest if rest < 3
     shuffle_policy_pile(bot, game)
-    for i in range(3):
-        topPolicies += game.board.policies[i] + "\n"
+    
+    for policy in game.board.policies[:3]:  # This will take up to 3 items, but won't raise an error if there are less than 3
+        topPolicies += policy + "\n"
+    
     if not re.search('test', str(game.board.state.president.user_id)):
         bot.send_message(game.board.state.president.user_id,
-                        "The top three polices are (top most first):\n%s\nYou may lie about this." % topPolicies)
+                         "The top three polices are (top most first):\n%s\nYou may lie about this." % topPolicies)
+    
     start_next_round(bot, game)
 
 def bot_kill_player(bot, game, player_to_kill):
     print(f"kill_player called for player: {player_to_kill.name}")
 
     if player_to_kill.alive:
+
+        # Remove player's vote if they have voted
+        if player_to_kill.user_id in game.votes:
+            del game.votes[player_to_kill.user_id]
+
         player_to_kill.alive = False
         if game.player_sequence.index(player_to_kill) <= game.board.state.player_counter:
             game.board.state.player_counter -= 1
@@ -499,6 +498,7 @@ def bot_choose_next_president(bot, game):
     alive_players = [player for player in game.get_players() if player.alive == True and player != game.board.state.president]
     if alive_players:  # If there is at least one player to choose
         chosen_president = random.choice(alive_players)  # Choose a random player
+        print("BOT ASIGN PRESIDENT: ", chosen_president)
         game.board.state.chosen_president = chosen_president  # Assign the chosen player as the next president
         bot.send_message(game.chat_id, f"{game.board.state.president.name} chose {chosen_president.name} as the next presidential candidate!")
     else:
@@ -573,7 +573,7 @@ def start_next_round(bot, game):
         print(p.name, p.role)
     GamesController.save_game_state(game.chat_id)
     if game.board.state.game_endcode == 0:
-        time.sleep(5)
+        time.sleep(8)
         if game.board.state.chosen_president is None:
             game.next_turn()
         start_round(bot, game)

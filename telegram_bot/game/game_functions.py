@@ -26,7 +26,10 @@ class SecretHitlerGame:
         self.fascist_track_actions = None  
         self.player_count = player_count 
         self.turn = None 
-
+        ## Voting Timeout ##
+        self.user_vote_timers = {}
+        self.vote_messages = {}
+        
     def set_player_count(self, player_count):
         self.player_count = player_count
         self.board = Board(player_count, self)
@@ -108,5 +111,21 @@ class SecretHitlerGame:
                 rtext += "secret role was " + player.role + "\n"
             return rtext
         
+    def get_user_timer(self, user_id):
+        return self.user_vote_timers.get(user_id, None)
+
+    def set_user_timer(self, user_id, timer):
+        self.user_vote_timers[user_id] = timer
+
+    def delete_user_timer(self, user_id):
+        if user_id in self.user_vote_timers:
+            del self.user_vote_timers[user_id]  
+
+    def clear_vote_messages(self):
+        self.vote_messages.clear()
+
+   # def get_vote_messages(self, user_id):
+    #    return self.user_vote_timers.get(user_id, None)   
+    
 def create_new_game(player_count=None):
     return SecretHitlerGame(player_count)
