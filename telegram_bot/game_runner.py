@@ -106,14 +106,14 @@ def handle_vote_timeout(bot, player, game):
         print(message_id)
         if message_id:
             bot.edit_message_text(chat_id=player.user_id, message_id=message_id,
-                                    text="You took too long to vote. A random vote was casted for you.")
+                                    text="You took too long to vote. A random vote was cast for you.")
         timer = game.get_user_timer(player.user_id)
         game.clear_vote_messages()
-        timer.cancel()
+        if timer:
+            timer.cancel()
         game.delete_user_timer(player.user_id)
         print("Cleared Timer")
         start_bot_voting(bot, game)
-        timer.cancel()
         del timer
 
 def check_and_count_votes(bot, game):
@@ -221,6 +221,7 @@ def count_votes(bot, game):
 def voting_aftermath(bot, game, voting_success):
     print('voting_aftermath called')
     game.board.state.last_votes = {}
+    game.clear_user_timers()
     game.votes.clear()
     if voting_success:
         if game.board.state.fascist_track >= 3 and game.board.state.chancellor.role == "Hitler":
@@ -235,6 +236,7 @@ def voting_aftermath(bot, game, voting_success):
             draw_policies(bot, game)
     else:
         bot.send_message(game.chat_id, game.board.print_board())
+        GamesController.save_game_state(game.chat_id)
         start_next_round(bot, game)  # Start a new round directly instead of calling start_next_round
 
 def draw_policies(bot, game):
@@ -360,6 +362,7 @@ def enact_policy(bot, game, policy, anarchy):
             if action is None and game.board.state.fascist_track == 6:
                 pass
             elif action == None:
+                GamesController.save_game_state(game.chat_id)
                 start_next_round(bot, game)
             elif action == "policy":
                 bot.send_message(game.chat_id,
@@ -388,8 +391,10 @@ def enact_policy(bot, game, policy, anarchy):
                                                                                                         "back to normal." % game.board.state.president.name)
                 action_choose(bot, game)
         else:
+            GamesController.save_game_state(game.chat_id)
             start_next_round(bot, game)
     else:
+        GamesController.save_game_state(game.chat_id)
         start_next_round(bot, game)
 
 def choose_veto(bot, game, player_id, answer):
@@ -442,7 +447,7 @@ def action_policy(bot, game):
     if not re.search('test', str(game.board.state.president.user_id)):
         bot.send_message(game.board.state.president.user_id,
                          "The top three polices are (top most first):\n%s\nYou may lie about this." % topPolicies)
-    
+    GamesController.save_game_state(game.chat_id)
     start_next_round(bot, game)
 
 def bot_kill_player(bot, game, player_to_kill):
@@ -468,6 +473,7 @@ def bot_kill_player(bot, game, player_to_kill):
         else:
             bot.send_message(game.chat_id, f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Hitler. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!")
             bot.send_message(game.chat_id, game.board.print_board())
+            GamesController.save_game_state(game.chat_id)
             start_next_round(bot, game)
     else:
         print(f"{player_to_kill.name} is already dead!")
@@ -567,11 +573,6 @@ def action_inspect(bot, game):
                         reply_markup=inspectMarkup)
 
 def start_next_round(bot, game):
-    print('start_next_round called')
-    print("saving game state with players: ")
-    for p in game.get_players():
-        print(p.name, p.role)
-    GamesController.save_game_state(game.chat_id)
     if game.board.state.game_endcode == 0:
         time.sleep(8)
         if game.board.state.chosen_president is None:

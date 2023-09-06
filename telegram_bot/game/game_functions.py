@@ -113,6 +113,9 @@ class SecretHitlerGame:
         
     def get_user_timer(self, user_id):
         return self.user_vote_timers.get(user_id, None)
+    
+    def clear_user_timers(self):
+        self.user_vote_timers.clear()
 
     def set_user_timer(self, user_id, timer):
         self.user_vote_timers[user_id] = timer

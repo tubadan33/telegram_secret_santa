@@ -2,6 +2,7 @@
 import os
 from config import TOKEN, TEST
 import telebot
+import requests
 from game.player import Player
 from game.board import Board
 from game.game_functions import create_new_game, SecretHitlerGame
@@ -12,7 +13,7 @@ import game_runner
 import re
 import pickle
 from apscheduler.schedulers.background import BackgroundScheduler
-
+import time
 bot = telebot.TeleBot(TOKEN)
 scheduler = BackgroundScheduler()
 scheduler.start()
@@ -176,8 +177,9 @@ def choose_kill(call):
     game = GamesController.get_game(chat_id) 
 
     player_to_kill = None
-    for player in game.players:
-        if player.id == player_to_kill_id:
+    for player in game.player_sequence:
+        print(player, player.user_id)
+        if player.user_id == player_to_kill_id:
             player_to_kill = player
             break
 
@@ -190,7 +192,7 @@ def choose_kill(call):
         game.board.state.player_counter -= 1
     game.player_sequence.remove(player_to_kill)
     game.board.state.dead += 1
-    print(f"Player {call.from_user.first_name} ({call.from_user.id}) killed {player_to_kill.name} ({player_to_kill.id})")
+    print(f"Player {call.from_user.first_name} ({call.from_user.id}) killed {player_to_kill.name} ({player_to_kill.user_id})")
 
     bot.send_message(chat_id, f"You killed {player_to_kill.name}!")
 
@@ -229,7 +231,7 @@ def choose_inspect(call):
     strcid, _, answer = call.data.partition('_insp_')
     chat_id = int(strcid)
     game = GamesController.get_game(chat_id)  
-    chosen = next((player for player in game.players if str(player.id) == answer), None)
+    chosen = next((player for player in game.players if str(player.user_id) == answer), None)
     if chosen is not None:
         print(f"Player {call.from_user.first_name} ({call.from_user.id}) inspects {chosen.name} ({chosen.id})'s party membership ({chosen.party})")
 
@@ -278,6 +280,10 @@ def load_crashed_game(message):
         with open("state_save/game_state.pkl", "rb") as file:
             GamesController.load_game_state(chat_id)
             game = GamesController.get_game(chat_id)
+            try:
+                print(game.game_phase)
+            except:
+                print("couldnt print game state")
             bot.send_message(chat_id, "Setting up prior game state...")
             game_runner.start_next_round(bot, game)
 
@@ -318,13 +324,17 @@ def start_game(message):
         bot.send_message(chat_id, start_message)
 
 @bot.message_handler(commands=['join'])
-def join(message):
+def join(message, user=None, name=None):
+    print(user, name)
     group_name = message.chat.title 
     chat_id = message.chat.id
     groupType = message.chat.type
     game = GamesController.get_game(chat_id)
     fname = message.from_user.first_name
     uid = message.from_user.id
+    if user:
+        fname = name
+        uid = user
 
     if groupType not in ['group', 'supergroup']:
         bot.send_message(chat_id, "You have to add me to a group first and type /newgame there!")
@@ -423,4 +433,24 @@ def calltovote(message):
     except Exception as e:
         bot.send_message(chat_id, str(e))
 
+@bot.message_handler(commands=['addgroup'])
+def add_all_chat_members(message):
+    chat_id = message.chat.id
+
+    #drek: 324873247
+    #smear:341503808
+    #will: 360843636
+    #cait: 350670502
+    #folsom: 874158666
+    #taylor: 359302140
+    #cody: 348088528
+    #jessika: 2079021993
+    user_ids = [348088528, 324873247, 341503808, 360843636, 350670502, 874158666, 359302140 ]
+    #user_ids = [348088528, 2079021993]
+    for user in user_ids:
+        name = bot.get_chat_member(chat_id, user).user.first_name
+        join(message, user, name)
+        
 bot.infinity_polling()
+
+
