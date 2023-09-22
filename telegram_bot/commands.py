@@ -193,8 +193,11 @@ def choose_kill(call):
     game.player_sequence.remove(player_to_kill)
     game.board.state.dead += 1
     print(f"Player {call.from_user.first_name} ({call.from_user.id}) killed {player_to_kill.name} ({player_to_kill.user_id})")
-
-    bot.send_message(chat_id, f"You killed {player_to_kill.name}!")
+    new_markup = telebot.types.InlineKeyboardMarkup()
+    bot.edit_message_text(chat_id=call.message.chat.id, 
+                          message_id=call.message.message_id,
+                          text=f"You killed {player_to_kill.name}!",
+                          reply_markup=new_markup)
 
     if player_to_kill.role == "Hitler":
         bot.send_message(chat_id, f"President {game.board.state.president.name} killed {player_to_kill.name}. ")
@@ -203,6 +206,7 @@ def choose_kill(call):
         bot.send_message(chat_id,
                          f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Hitler. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!")
         bot.send_message(chat_id, game.board.print_board())
+        GamesController.save_game_state(game.chat_id)
         game_runner.start_next_round(bot, game)
 
 @bot.callback_query_handler(func=lambda call: re.match(r"-?\w+_choo_\w+$", call.data))
@@ -214,33 +218,44 @@ def choose_choose(call):
     chosen_user_id = int(struid)
     # Get the game instance
     game = GamesController.get_game(chat_id) 
-    chosen_player = next((player for player in game.players if player.user_id == chosen_user_id), None)
+    chosen_player = next((player for player in game.player_sequence if player.user_id == chosen_user_id), None)
     if chosen_player is None:
         print(f"choose_choose: Player with user_id {chosen_user_id} not found")
         return
 
+    # Save the chosen president and save the original turn index
     game.board.state.chosen_president = chosen_player
+    game.board.state.chosen_president_index = game.turn
+    
+    # Update the turn to reflect the chosen president's position in the sequence
+    game.turn = game.player_sequence.index(chosen_player)
+
+    # Inform the players and start the next round
     if not re.search('test', str(chosen_player.user_id)):
         bot.send_message(call.from_user.id, f"You chose {chosen_player.name} as the next president!")
         bot.send_message(game.chat_id, f"President {game.board.state.president.name} chose {chosen_player.name} as the next president.")
+    GamesController.save_game_state(game.chat_id)
     game_runner.start_next_round(bot, game)
 
-@bot.callback_query_handler(func=lambda call: re.match(r"-?\w+_(.*insp)$", call.data))
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\w+_insp_\w+$", call.data))
 def choose_inspect(call):
     print('choose_inspect called')
     strcid, _, answer = call.data.partition('_insp_')
     chat_id = int(strcid)
     game = GamesController.get_game(chat_id)  
-    chosen = next((player for player in game.players if str(player.user_id) == answer), None)
+    chosen = next((player for player in game.player_sequence if str(player.user_id) == answer), None)
     if chosen is not None:
-        print(f"Player {call.from_user.first_name} ({call.from_user.id}) inspects {chosen.name} ({chosen.id})'s party membership ({chosen.party})")
+        print(f"Player {call.from_user.first_name} ({call.from_user.id}) inspects {chosen.name} ({chosen.user_id})'s party membership ({chosen.party})")
 
-        # For a real game, you may want to send the party membership privately to the inspecting user, not print it
-        # bot.send_message(call.from_user.id, f"The party membership of {chosen.name} is {chosen.party}")
-
-        if not re.search('test', str(chosen.id)):
+        new_markup = telebot.types.InlineKeyboardMarkup()
+        bot.edit_message_text(chat_id=call.message.chat.id, 
+                            message_id=call.message.message_id,
+                            text=f"The party membership of {chosen.name} is {chosen.party}",
+                            reply_markup=new_markup)
+        
+        if not re.search('test', str(chosen.user_id)):
             bot.send_message(game.chat_id, f"President {game.board.state.president.name} inspected {chosen.name}.")
-
+        GamesController.save_game_state(game.chat_id)
         game_runner.start_next_round(bot, game)
     else:
         print("choose_inspect: The chosen player was not found in the game!")

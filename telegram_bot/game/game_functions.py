@@ -26,6 +26,7 @@ class SecretHitlerGame:
         self.fascist_track_actions = None  
         self.player_count = player_count 
         self.turn = None 
+        self.choose_president_turn = None
         ## Voting Timeout ##
         self.user_vote_timers = {}
         self.vote_messages = {}

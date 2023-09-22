@@ -14,7 +14,11 @@ class Board(object):
         self.game = game
         self.discards = []
         self.previous = []
-
+    def reset_policies(self, game_policies):
+        if len(game_policies) == 0:
+            game_policies = random.sample(policies, len(policies))
+        return game_policies
+        
     def print_board(self):
         board = "--- Liberal acts ---\n"
         for i in range(5):

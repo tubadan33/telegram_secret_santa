@@ -8,6 +8,7 @@ class State(object):
         self.nominated_president = None
         self.nominated_chancellor = None
         self.chosen_president = None
+        self.chosen_president_index = None
         self.chancellor = None
         self.dead = 0
         self.last_votes = {}

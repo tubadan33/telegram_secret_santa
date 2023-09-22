@@ -14,24 +14,30 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 def start_round(bot, game):
     print('start_round called')
+
+    # If the turn isn't initialized, set it to 0
     if game.turn is None:
         game.turn = 0
-    elif game.board.state.chosen_president is None:
-        game.turn = (game.turn + 1) % len(game.player_sequence)
-
-    # Choose the next president
-    print("DEBUG PRESIDENT: ", game.board.state.chosen_president)
-    if game.board.state.chosen_president is None:
-        print("game.turn: ", game.turn, " Sequence: ",  game.player_sequence[game.turn].name)
-        game.board.state.nominated_president = game.player_sequence[game.turn]
-    else:
+    # Check if a special president was chosen
+    elif game.board.state.chosen_president:
+        # Update the nominated president and reset the chosen president
         game.board.state.nominated_president = game.board.state.chosen_president
         game.board.state.chosen_president = None
+    else:
+        # If no special president, revert back to the saved index if it exists and then advance the turn
+        if hasattr(game.board.state, 'chosen_president_index') and game.board.state.chosen_president_index is not None:
+            game.turn = game.board.state.chosen_president_index
+            game.board.state.chosen_president_index = None  # reset the saved index
+        # Now advance the turn in normal sequence
+        game.turn = (game.turn + 1) % len(game.player_sequence)
+        game.board.state.nominated_president = game.player_sequence[game.turn]
 
+    # Send message about the nominated president
     bot.send_message(game.chat_id,
                      "The next presidential candidate is %s.\n%s, please nominate a Chancellor in our private chat!" % (
                          game.board.state.nominated_president.name, game.board.state.nominated_president.name))
     print("Round Starting, nom pres ", game.board.state.nominated_president)
+    
     choose_chancellor(bot, game)
 
 def choose_chancellor(bot, game):
@@ -148,7 +154,9 @@ def vote(bot, game):
                             reply_markup=voteMarkup)
         print("MESSAGE ID: ", vote_message.message_id)
         game.vote_messages[player.user_id] = vote_message.message_id
-        timer = threading.Timer(30, handle_vote_timeout, args=[bot, player, game])
+        timeout = 1 * 60 * 60 # hours to seconds
+        print("using timeout of: ", timeout, " seconds")
+        timer = threading.Timer(timeout, handle_vote_timeout, args=[bot, player, game])
         timer.start()
         game.set_user_timer(player.user_id, timer)
 
@@ -270,6 +278,7 @@ def draw_policies(bot, game):
     else:  # case for test player
         discarded_policy = random.choice(game.board.state.drawn_policies)
         game.board.state.drawn_policies.remove(discarded_policy)
+        game.board.discards.append(discarded_policy)
         print(f"Test player {game.board.state.president.name} ({game.board.state.president.user_id}) discarded {discarded_policy}")
         pass_two_policies(bot, game)
 
@@ -426,6 +435,7 @@ def choose_veto(bot, game, player_id, answer):
 
 def do_anarchy(bot, game):
     print('do_anarchy called')
+    shuffle_policy_pile(bot, game)
     bot.send_message(game.chat_id, game.board.print_board())
     bot.send_message(game.chat_id, "ANARCHY!!")
     game.board.state.president = None
@@ -482,7 +492,7 @@ def action_kill(bot, game):
     print('action_kill called')
     btns = []
     for player in game.get_players():
-        if player != game.board.state.president and player.alive == True:
+        if player.alive == True:
             name = player.name
             btns.append([types.InlineKeyboardButton(name, callback_data=str(game.chat_id) + "_kill_" + str(player.user_id))])
 
@@ -556,27 +566,17 @@ def action_inspect(bot, game):
     else:
         bot_inspect_player(bot, game)
 
-def action_inspect(bot, game):
-    print('action_inspect called')
-    strcid = str(game.chat_id)
-    btns = []
-    for player in game.get_players():
-        if player != game.board.state.president.user_id and player.alive == True:
-            name = player.name
-            btns.append([types.InlineKeyboardButton(name, callback_data=strcid + "_insp_" + str(player.user_id))])
-
-    inspectMarkup = types.InlineKeyboardMarkup(btns)
-    if not re.search('test', str(game.board.state.president.user_id)):
-        bot.send_message(game.board.state.president.user_id, game.board.print_board())
-        bot.send_message(game.board.state.president.user_id,
-                        'You may see the party membership of one player. Which do you want to know? Choose wisely!',
-                        reply_markup=inspectMarkup)
-
 def start_next_round(bot, game):
     if game.board.state.game_endcode == 0:
         time.sleep(8)
-        if game.board.state.chosen_president is None:
+        
+        if game.board.state.chosen_president is not None:
+            game.turn = game.board.state.chosen_president_index
+            # Clear the chosen_president_index after using it
+            del game.board.state.chosen_president_index
+        else:
             game.next_turn()
+        
         start_round(bot, game)
 
 ##
@@ -715,7 +715,12 @@ def increment_player_counter(game):
         
 def shuffle_policy_pile(bot, game):
     # log.info('shuffle_policy_pile called')
+    print("DISCARDS: ", game.board.discards)
+    print("POLICIES: ", game.board.policies)
+    print("Shuffle policies called with: ", game.board.policies)
     if len(game.board.policies) < 3:
+        print("DISCARDS: ", game.board.discards)
+        print("POLICIES: ", game.board.policies)
         game.board.discards.extend(game.board.policies)  # Combining the remaining policies with the discards
         random.shuffle(game.board.discards)  # Shuffle the combined pile
         game.board.policies = game.board.discards  # Assign the shuffled deck to policies
@@ -723,7 +728,7 @@ def shuffle_policy_pile(bot, game):
 
         if not game.board.policies:  # If both discard and policies piles are empty, handle this edge case
             bot.send_message(game.chat_id, "There are no policies left!")
-            return  # Add necessary handling here for when there are no policies left
+            game.board.policies = game.board.reset_policies(game.board.policies)
 
         bot.send_message(game.chat_id,
                          "There were not enough cards left on the policy pile so I shuffled the rest with the discard pile!")
