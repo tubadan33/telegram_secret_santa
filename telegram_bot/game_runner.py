@@ -14,11 +14,17 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 def start_round(bot, game):
     print('start_round called')
+    print("Debug Info:")
+    print("game turn:", game.turn)
+    print("Chosen: ", game.board.state.chosen_president)
+    print("nominated_president:", game.board.state.nominated_president)
+    print("Type of nominated_president:", type(game.board.state.nominated_president))
 
     # If the turn isn't initialized, set it to 0
     if game.turn is None:
         game.turn = 0
-    # Check if a special president was chosen
+        game.board.state.nominated_president = game.player_sequence[game.turn]
+
     elif game.board.state.chosen_president:
         # Update the nominated president and reset the chosen president
         game.board.state.nominated_president = game.board.state.chosen_president
@@ -156,7 +162,7 @@ def vote(bot, game):
         game.vote_messages[player.user_id] = vote_message.message_id
         timeout = 1 * 60 * 60 # hours to seconds
         print("using timeout of: ", timeout, " seconds")
-        timer = threading.Timer(timeout, handle_vote_timeout, args=[bot, player, game])
+        timer = threading.Timer(60, handle_vote_timeout, args=[bot, player, game])
         timer.start()
         game.set_user_timer(player.user_id, timer)
 
