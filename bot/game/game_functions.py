@@ -6,6 +6,7 @@ import random
 import time
 from game.test_player import TestPlayer
 import game_runner 
+from faker import Faker
 
 class SecretHitlerGame:
     def __init__(self, chat_id, initiator_id, player_count=None):
@@ -84,8 +85,9 @@ class SecretHitlerGame:
             player.role = role
 
     def add_test_players(self, player_gap):
+        fake = Faker()
         for i in range(player_gap):
-            test_player = TestPlayer(f'test{i}', f'Test Player {i}')
+            test_player = TestPlayer(f'test{i}', fake.name())
             print("TEST: ", test_player.user_id)
             self.add_player(test_player.user_id, test_player.name)
             

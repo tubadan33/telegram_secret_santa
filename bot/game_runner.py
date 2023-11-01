@@ -71,6 +71,7 @@ def choose_chancellor(bot, game):
                 btns.append([types.InlineKeyboardButton(player.name, callback_data=strcid + "_choose_chancellor_" + str(player.user_id))])
 
     chancellorMarkup = types.InlineKeyboardMarkup(btns)
+    print(str(game.board.state.nominated_president.user_id))
     if not re.search('test', str(game.board.state.nominated_president.user_id)):
         bot.send_message(game.board.state.nominated_president.user_id, game.board.print_board())
         bot.send_message(game.board.state.nominated_president.user_id, 'Please nominate your chancellor!',
@@ -705,8 +706,6 @@ def inform_fascists(bot, game):
         elif role == "Hitler":
             if player_number <= 6:
                 fascist = next(p for p in game.get_players() if p.role == "Fascist")
-                if not re.search('test', str(player.user_id)):
-                    bot.send_message(player.user_id, "Your fellow fascist is: %s" % fascist.name)
         elif role == "Liberal":
             pass
         else:
