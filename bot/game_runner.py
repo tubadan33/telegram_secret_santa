@@ -239,15 +239,15 @@ def voting_aftermath(bot, game, voting_success):
     game.clear_user_timers()
     game.votes.clear()
     if voting_success:
-        if game.board.state.fascist_track >= 3 and game.board.state.chancellor.role == "Hitler":
-            # fascists win, because Hitler was elected as chancellor after 3 fascist policies
+        if game.board.state.naughtist_track >= 3 and game.board.state.chancellor.role == "Santa":
+            # naughtists win, because Santa was elected as chancellor after 3 naughtist policies
             game.board.state.game_endcode = -2
             end_game(bot, game, game.board.state.game_endcode)
-        elif game.board.state.fascist_track >= 3 and game.board.state.chancellor.role != "Hitler" and game.board.state.chancellor not in game.board.state.not_hitlers:
-            game.board.state.not_hitlers.append(game.board.state.chancellor)
+        elif game.board.state.naughtist_track >= 3 and game.board.state.chancellor.role != "Santa" and game.board.state.chancellor not in game.board.state.not_santas:
+            game.board.state.not_santas.append(game.board.state.chancellor)
             draw_policies(bot, game)
         else:
-            # voting was successful and Hitler was not nominated as chancellor after 3 fascist policies
+            # voting was successful and Santa was not nominated as chancellor after 3 naughtist policies
             draw_policies(bot, game)
     else:
         bot.send_message(game.chat_id, game.board.print_board())
@@ -302,7 +302,7 @@ def pass_two_policies(bot, game):
 
     is_test_player = re.search('test', str(game.board.state.chancellor.user_id))
 
-    if game.board.state.fascist_track == 5 and not game.board.state.veto_refused:
+    if game.board.state.naughtist_track == 5 and not game.board.state.veto_refused:
         btns.append([types.InlineKeyboardButton("Veto", callback_data=strcid + "_veto")])
         if not is_test_player:
             bot.send_message(game.chat_id,
@@ -322,7 +322,7 @@ def pass_two_policies(bot, game):
         else:
             handle_test_player_choice(bot, game)
 
-    elif game.board.state.fascist_track < 5:
+    elif game.board.state.naughtist_track < 5:
         if not is_test_player:
             bot.send_message(game.board.state.chancellor.user_id,
                              "President %s gave you the following 2 policies. Which one do you want to enact?" % game.board.state.president.name,
@@ -343,10 +343,10 @@ def handle_test_player_choice(bot, game):
 def enact_policy(bot, game, policy, anarchy):
     print('enact_policy called')
     
-    if policy == "liberal":
-        game.board.state.liberal_track += 1
-    elif policy == "fascist":
-        game.board.state.fascist_track += 1
+    if policy == "niceist":
+        game.board.state.niceist_track += 1
+    elif policy == "naughtist":
+        game.board.state.naughtist_track += 1
     
     game.board.state.failed_votes = 0  # reset counter
     
@@ -361,21 +361,21 @@ def enact_policy(bot, game, policy, anarchy):
     time.sleep(3)
     bot.send_message(game.chat_id, game.board.print_board())
     # end of round
-    if game.board.state.liberal_track == 5:
+    if game.board.state.niceist_track == 5:
         game.board.state.game_endcode = 1
-        end_game(bot, game, game.board.state.game_endcode)  # liberals win with 5 liberal policies
-    if game.board.state.fascist_track == 6:
+        end_game(bot, game, game.board.state.game_endcode)  # niceists win with 5 niceist policies
+    if game.board.state.naughtist_track == 6:
         game.board.state.game_endcode = -1
-        end_game(bot, game, game.board.state.game_endcode)  # fascists win with 6 fascist policies
+        end_game(bot, game, game.board.state.game_endcode)  # naughtists win with 6 naughtist policies
 
     time.sleep(3)
     # End of legislative session, shuffle if necessary 
     shuffle_policy_pile(bot, game)    
     
     if not anarchy:
-        if policy == "fascist":
-            action = game.board.fascist_track_actions[game.board.state.fascist_track - 1]
-            if action is None and game.board.state.fascist_track == 6:
+        if policy == "naughtist":
+            action = game.board.naughtist_track_actions[game.board.state.naughtist_track - 1]
+            if action is None and game.board.state.naughtist_track == 6:
                 pass
             elif action == None:
                 GamesController.save_game_state(game.chat_id)
@@ -484,11 +484,11 @@ def bot_kill_player(bot, game, player_to_kill):
         print(f"President {game.board.state.president.name} killed {player_to_kill.name}")
         bot.send_message(game.chat_id, f"{game.board.state.president.name} killed {player_to_kill.name}!")
         
-        if player_to_kill.role == "Hitler":
+        if player_to_kill.role == "Santa":
             bot.send_message(game.chat_id, f"President {game.board.state.president.name} killed {player_to_kill.name}. ")
             end_game(bot, game, 2)
         else:
-            bot.send_message(game.chat_id, f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Hitler. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!")
+            bot.send_message(game.chat_id, f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Santa. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!")
             bot.send_message(game.chat_id, game.board.print_board())
             GamesController.save_game_state(game.chat_id)
             start_next_round(bot, game)
@@ -596,11 +596,11 @@ def end_game(bot, game, game_endcode):
     print('end_game called')
     ##
     # game_endcode:
-    #   -2  fascists win by electing Blue as chancellor
-    #   -1  fascists win with 6 fascist policies
+    #   -2  naughtists win by electing Blue as chancellor
+    #   -1  naughtists win with 6 naughtist policies
     #   0   not ended
-    #   1   liberals win with 5 liberal policies
-    #   2   liberals win by killing Blue
+    #   1   niceists win with 5 niceist policies
+    #   2   niceists win by killing Blue
     #   99  game cancelled
     #
    # with open(STATS, 'r') as f:
@@ -610,26 +610,26 @@ def end_game(bot, game, game_endcode):
         if game.board is not None:
             bot.send_message(game.chat_id,
                              "Game cancelled!\n\n%s" % game.print_roles())
-            # bot.send_message(ADMIN, "Game of Secret Hitler canceled in group %d" % game.cid)
+            # bot.send_message(ADMIN, "Game of Secret Santa canceled in group %d" % game.cid)
            # stats['cancelled'] = stats['cancelled'] + 1
         else:
             bot.send_message(game.chat_id, "Game cancelled!")
     else:
         if game_endcode == -2:
             bot.send_message(game.chat_id,
-                             "Game over! The fascists win by electing Hitler as Chancellor!\n\n%s" % game.print_roles())
+                             "Game over! The naughtists win by electing Santa as Chancellor!\n\n%s" % game.print_roles())
             #stats['fascwin_blue'] = stats['fascwin_blue'] + 1
         if game_endcode == -1:
             bot.send_message(game.chat_id,
-                             "Game over! The fascists win by enacting 6 fascist policies!\n\n%s" % game.print_roles())
+                             "Game over! The naughtists win by enacting 6 naughtist policies!\n\n%s" % game.print_roles())
             #stats['fascwin_policies'] = stats['fascwin_policies'] + 1
         if game_endcode == 1:
             bot.send_message(game.chat_id,
-                             "Game over! The liberals win by enacting 5 liberal policies!\n\n%s" % game.print_roles())
+                             "Game over! The niceists win by enacting 5 niceist policies!\n\n%s" % game.print_roles())
             #stats['libwin_policies'] = stats['libwin_policies'] + 1
         if game_endcode == 2:
             bot.send_message(game.chat_id,
-                             "Game over! The liberals win by killing Hitler!\n\n%s" % game.print_roles())
+                             "Game over! The niceists win by killing Santa!\n\n%s" % game.print_roles())
             #stats['libwin_kill'] = stats['libwin_kill'] + 1
     print("deleting at end game")
     del GamesController.games[game.chat_id]
@@ -639,26 +639,26 @@ def end_game(bot, game, game_endcode):
 
 def get_membership(role):
     print('get_membership called')
-    if role == "Fascist" or role == "Hitler":
-        return "fascist"
-    elif role == "Liberal":
-        return "liberal"
+    if role == "Naughtist" or role == "Santa":
+        return "naughtist"
+    elif role == "Niceist":
+        return "niceist"
     else:
         return None
     
 def print_player_info(player_number):
     if player_number == 5:
-        return "There are 3 Liberals, 1 Fascist and Hitler. Hitler knows who the Fascist is."
+        return "There are 3 Niceists, 1 Naughtist and Santa. Santa knows who the Naughtist is."
     elif player_number == 6:
-        return "There are 4 Liberals, 1 Fascist and Hitler. Hitler knows who the Fascist is."
+        return "There are 4 Niceists, 1 Naughtist and Santa. Santa knows who the Naughtist is."
     elif player_number == 7:
-        return "There are 4 Liberals, 2 Fascist and Hitler. Hitler doesn't know who the Fascists are."
+        return "There are 4 Niceists, 2 Naughtist and Santa. Santa doesn't know who the Naughtists are."
     elif player_number == 8:
-        return "There are 5 Liberals, 2 Fascist and Hitler. Hitler doesn't know who the Fascists are."
+        return "There are 5 Niceists, 2 Naughtist and Santa. Santa doesn't know who the Naughtists are."
     elif player_number == 9:
-        return "There are 5 Liberals, 3 Fascist and Hitler. Hitler doesn't know who the Fascists are."
+        return "There are 5 Niceists, 3 Naughtist and Santa. Santa doesn't know who the Naughtists are."
     elif player_number == 10:
-        return "There are 6 Liberals, 3 Fascist and Hitler. Hitler doesn't know who the Fascists are."
+        return "There are 6 Niceists, 3 Naughtist and Santa. Santa doesn't know who the Naughtists are."
 
     
 def inform_players(bot, game):
@@ -688,28 +688,28 @@ def inform_players(bot, game):
                                player_number, print_player_info(player_number)))
     
 
-def inform_fascists(bot, game):
+def inform_naughtists(bot, game):
     player_number = len(game.get_players())
 
     for player in game.get_players():
         role = player.role
         print("ROLE: ", role)
-        if role == "Fascist":
-            fascists = [p for p in game.get_players() if p.role == "Fascist" and p.user_id != player.user_id]
-            hitler = next(p for p in game.get_players() if p.role == "Hitler")
+        if role == "Naughtist":
+            naughtists = [p for p in game.get_players() if p.role == "Naughtist" and p.user_id != player.user_id]
+            santa = next(p for p in game.get_players() if p.role == "Santa")
             if player_number > 6:
-                fstring = ", ".join([f.name for f in fascists])
+                fstring = ", ".join([f.name for f in naughtists])
                 if not re.search('test', str(player.user_id)):
-                    bot.send_message(player.user_id, "Your fellow fascists are: %s" % fstring)
+                    bot.send_message(player.user_id, "Your fellow naughtists are: %s" % fstring)
             if not re.search('test', str(player.user_id)):
-                bot.send_message(player.user_id, "Hitler is: %s" % hitler.name)
-        elif role == "Hitler":
+                bot.send_message(player.user_id, "Santa is: %s" % santa.name)
+        elif role == "Santa":
             if player_number <= 6:
-                fascist = next(p for p in game.get_players() if p.role == "Fascist")
-        elif role == "Liberal":
+                naughtist = next(p for p in game.get_players() if p.role == "Naughtist")
+        elif role == "Niceist":
             pass
         else:
-            print("inform_fascists: can't handle the role %s" % role)
+            print("inform_naughtists: can't handle the role %s" % role)
 
 def increment_player_counter(game):
     #log.info('increment_player_counter called')

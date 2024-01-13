@@ -7,8 +7,8 @@ import time
 from game.test_player import TestPlayer
 import game_runner 
 from faker import Faker
-
-class SecretHitlerGame:
+from .elf_name import *
+class SecretSantaGame:
     def __init__(self, chat_id, initiator_id, player_count=None):
         self.chat_id = chat_id
         self.initiator_id = initiator_id 
@@ -22,9 +22,9 @@ class SecretHitlerGame:
         self.policy_deck = policies.copy()  
         random.shuffle(self.policy_deck)  
         self.policies_in_play = []  
-        self.liberal_policies_passed = 0  
-        self.fascist_policies_passed = 0  
-        self.fascist_track_actions = None  
+        self.niceist_policies_passed = 0  
+        self.naughtist_policies_passed = 0  
+        self.naughtist_track_actions = None  
         self.player_count = player_count 
         self.turn = None 
         self.choose_president_turn = None
@@ -35,7 +35,7 @@ class SecretHitlerGame:
     def set_player_count(self, player_count):
         self.player_count = player_count
         self.board = Board(player_count, self)
-        self.fascist_track_actions = playerSets[player_count]["track"]
+        self.naughtist_track_actions = playerSets[player_count]["track"]
 
     def add_player(self, user_id, name): 
         player = Player(user_id, name) 
@@ -63,7 +63,7 @@ class SecretHitlerGame:
 
         player_number = len(self.get_players())
         game_runner.inform_players(bot, game)
-        game_runner.inform_fascists(bot, game)
+        game_runner.inform_naughtists(bot, game)
 
         random.shuffle(self.player_sequence) 
         self.upcoming_turns = self.player_sequence.copy()  
@@ -85,11 +85,11 @@ class SecretHitlerGame:
             player.role = role
 
     def add_test_players(self, player_gap):
-        fake = Faker()
         for i in range(player_gap):
-            test_player = TestPlayer(f'test{i}', fake.name())
+            test_player = TestPlayer(f'test{i}', generate_christmas_elf_name())
             print("TEST: ", test_player.user_id)
             self.add_player(test_player.user_id, test_player.name)
+
             
     def get_board(self):
         return self.board
@@ -134,4 +134,4 @@ class SecretHitlerGame:
     #    return self.user_vote_timers.get(user_id, None)   
     
 def create_new_game(player_count=None):
-    return SecretHitlerGame(player_count)
+    return SecretSantaGame(player_count)

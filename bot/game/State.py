@@ -1,8 +1,8 @@
 class State(object):
     """Storage object for game state"""
     def __init__(self):
-        self.liberal_track = 0
-        self.fascist_track = 0
+        self.niceist_track = 0
+        self.naughtist_track = 0
         self.failed_votes = 0
         self.president = None
         self.nominated_president = None
@@ -16,4 +16,4 @@ class State(object):
         self.drawn_policies = []
         self.player_counter = 0
         self.veto_refused = False
-        self.not_hitlers = []
+        self.not_santas = []

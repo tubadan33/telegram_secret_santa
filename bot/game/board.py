@@ -9,7 +9,7 @@ class Board(object):
     def __init__(self, playercount, game):
         self.state = State()
         self.num_players = playercount
-        self.fascist_track_actions = playerSets[self.num_players]["track"]
+        self.naughtist_track_actions = playerSets[self.num_players]["track"]
         self.policies = random.sample(policies, len(policies))
         self.game = game
         self.discards = []
@@ -20,20 +20,20 @@ class Board(object):
         return game_policies
         
     def print_board(self):
-        board = "--- Liberal acts ---\n"
+        board = "--- Niceist acts ---\n"
         for i in range(5):
-            if i < self.state.liberal_track:
+            if i < self.state.niceist_track:
                 board += u"\u2716\uFE0F" + " " #X
-            elif i >= self.state.liberal_track and i == 4:
+            elif i >= self.state.niceist_track and i == 4:
                 board += u"\U0001F54A" + " " #dove
             else:
                 board += u"\u25FB\uFE0F" + " " #empty
-        board += "\n--- Fascist acts ---\n"
+        board += "\n--- Naughtist acts ---\n"
         for i in range(6):
-            if i < self.state.fascist_track:
+            if i < self.state.naughtist_track:
                 board += u"\u2716\uFE0F" + " " #X
             else:
-                action = self.fascist_track_actions[i]
+                action = self.naughtist_track_actions[i]
                 if action == None:
                     board += u"\u25FB\uFE0F" + " "  # empty
                 elif action == "policy":
@@ -60,11 +60,11 @@ class Board(object):
         board = board[:-3]
         board += u"\U0001F501"
         board += "\n\nThere are " + str(len(self.policies)) + " policies left on the pile."
-        if self.state.fascist_track >= 3:
-            board += "\n\n" + u"\u203C\uFE0F" + " Beware: If Hitler gets elected as Chancellor the fascists win the game! " + u"\u203C\uFE0F"
-        if len(self.state.not_hitlers) > 0:
-            board += "\n\nWe know that the following players are not Hitler because they got elected as Chancellor after 3 fascist policies:\n"
-            for nh in self.state.not_hitlers:
+        if self.state.naughtist_track >= 3:
+            board += "\n\n" + u"\u203C\uFE0F" + " Beware: If Santa gets elected as Chancellor the naughtists win the game! " + u"\u203C\uFE0F"
+        if len(self.state.not_santas) > 0:
+            board += "\n\nWe know that the following players are not Santa because they got elected as Chancellor after 3 naughtist policies:\n"
+            for nh in self.state.not_santas:
                 board += nh.name + ", "
             board = board[:-2]
         return board

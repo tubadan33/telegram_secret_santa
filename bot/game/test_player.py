@@ -10,4 +10,4 @@ class TestPlayer(Player):
         return random.choice(['yes', 'no'])
 
     def choose_policy(self):
-        return random.choice(['liberal', 'fascist'])
+        return random.choice(['niceist', 'naughtist'])

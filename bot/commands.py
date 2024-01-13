@@ -5,7 +5,7 @@ import telebot
 import requests
 from game.player import Player
 from game.board import Board
-from game.game_functions import create_new_game, SecretHitlerGame
+from game.game_functions import create_new_game, SecretSantaGame
 import datetime
 from gamecontroller import GamesController
 from game.test_player import TestPlayer
@@ -22,14 +22,14 @@ scheduler.start()
 
 commands = [  # command description used in the "help" command
     '/help - Gives you information about the available commands',
-    '/start - Gives you a short piece of information about Secret Hitler',
+    '/start - Gives you a short piece of information about Secret Santa',
     '/symbols - Shows you all possible symbols of the board',
-    '/rules - Gives you a link to the official Secret Hitler rules',
+    '/rules - Gives you a link to the official Secret Santa rules',
     '/newgame - Creates a new game',
     '/join - Joins an existing game',
     '/startgame - Starts an existing game when all players have joined',
     '/cancelgame - Cancels an existing game. All data of the game will be lost',
-    '/board - Prints the current board with fascist and liberals tracks, presidential order and election counter',
+    '/board - Prints the current board with naughtist and niceists tracks, presidential order and election counter',
     '/votes - Prints who voted',
     '/calltovote - Calls the players to vote'
 ]
@@ -41,8 +41,8 @@ symbols = [
     u"\U0001F50E" + ' Presidential Power: Investigate Loyalty',  # inspection glass
     u"\U0001F5E1" + ' Presidential Power: Execution',  # knife
     u"\U0001F454" + ' Presidential Power: Call Special Election',  # tie
-    u"\U0001F54A" + ' Liberals win',  # dove
-    u"\u2620" + ' Fascists win'  # skull
+    u"\U0001F54A" + ' niceists win',  # dove
+    u"\u2620" + ' naughtists win'  # skull
 ]
 
 bot = telebot.TeleBot(TOKEN)
@@ -125,7 +125,7 @@ def callback_vote(call):
         print("STARTING CALLBACK BOT VOTING")
         game_runner.start_bot_voting(bot, game)
 
-@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_(fascist|liberal)$", call.data))
+@bot.callback_query_handler(func=lambda call: re.match(r"-?\d+_(naughtist|niceist)$", call.data))
 def choose_policy(call):
     print(f"choose_policy called with data: {call.data}")
     
@@ -199,12 +199,12 @@ def choose_kill(call):
                           text=f"You killed {player_to_kill.name}!",
                           reply_markup=new_markup)
 
-    if player_to_kill.role == "Hitler":
+    if player_to_kill.role == "Santa":
         bot.send_message(chat_id, f"President {game.board.state.president.name} killed {player_to_kill.name}. ")
         game_runner.end_game(bot, game, 2)
     else:
         bot.send_message(chat_id,
-                         f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Hitler. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!")
+                         f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Santa. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!")
         bot.send_message(chat_id, game.board.print_board())
         GamesController.save_game_state(game.chat_id)
         game_runner.start_next_round(bot, game)
@@ -277,12 +277,12 @@ def help(message):
 @bot.message_handler(commands=['start'])
 def start_game(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "\"Secret Hitler is a social deduction game for 5-10 people about finding and stopping the Secret Hitler."
-                     " The majority of players are liberals. If they can learn to trust each other, they have enough "
-                     "votes to control the table and win the game. But some players are fascists. They will say whatever "
-                     "it takes to get elected, enact their agenda, and blame others for the fallout. The liberals must "
-                     "work together to discover the truth before the fascists install their cold-blooded leader and win "
-                     "the game.\"\n- official description of Secret Hitler\n\nAdd me to a group and type /newgame to create a game!")
+    bot.send_message(chat_id, "\"Secret Santa is a social deduction game for 5-10 people about finding and stopping the Secret Santa."
+                     " The majority of players are niceists. If they can learn to trust each other, they have enough "
+                     "votes to control the table and win the game. But some players are naughtists. They will say whatever "
+                     "it takes to get elected, enact their agenda, and blame others for the fallout. The niceists must "
+                     "work together to discover the truth before the naughtists install their cold-blooded leader and win "
+                     "the game.\"\n- official description of Secret Santa\n\nAdd me to a group and type /newgame to create a game!")
 
 @bot.message_handler(commands=['restart'])
 def load_crashed_game(message):
@@ -315,7 +315,7 @@ def newgame(message):
     elif game:
         bot.send_message(chat_id, "There is currently a game running. If you want to end it please type /cancelgame!")
     else:
-        new_game = SecretHitlerGame(chat_id, message.from_user.id)  # 0 as a placeholder for player_count, it will be replaced when the game starts.
+        new_game = SecretSantaGame(chat_id, message.from_user.id)  # 0 as a placeholder for player_count, it will be replaced when the game starts.
         GamesController.new_game(chat_id, new_game)
         bot.send_message(chat_id, "New game created! Each player has to /join the game.\nThe initiator of this game (or the admin) can /join too and type /startgame when everyone has joined the game!")
 
