@@ -3,6 +3,7 @@ import re
 
 import telebot
 from apscheduler.schedulers.background import BackgroundScheduler
+from telebot.types import InlineKeyboardMarkup
 
 import game_runner
 from config import TOKEN
@@ -385,6 +386,7 @@ def start_game(message):
     else:
         start_message = game.start_game(bot, game)
         bot.send_message(chat_id, start_message)
+        bot.send_message(chat_id, game.print_board())
 
 
 @bot.message_handler(commands=["join"])

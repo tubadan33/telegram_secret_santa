@@ -153,7 +153,7 @@ def vote(bot, game):
     game.dateinitvote = datetime.datetime.now()
     strcid = str(game.chat_id)
 
-    for player in game.get_players_alive:
+    for player in game.get_players_alive():
         # Create vote buttons for this specific player
         btns = [
             [
