@@ -68,7 +68,6 @@ def callback_choose_chancellor(call):
         return
     print("Game's board is not None, proceeding to nominate_chosen_chancellor")
     chosen_chancellor = None
-    print("TYPE: ", type(p.user_id))
     chosen_chancellor = next(
         (p for p in game.get_players() if p.user_id == int(chosen_uid)), None
     )
