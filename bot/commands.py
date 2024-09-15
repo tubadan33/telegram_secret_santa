@@ -71,7 +71,7 @@ def callback_choose_chancellor(call):
 
     chosen_chancellor = None
     chosen_chancellor = next(
-        (p for p in game.get_players_alive() if p.user_id == int(chosen_uid)), None
+        (p for p in game.get_players() if p.user_id == int(chosen_uid)), None
     )
 
     if chosen_chancellor is None:
