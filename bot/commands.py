@@ -3,7 +3,6 @@ import re
 
 import telebot
 from apscheduler.schedulers.background import BackgroundScheduler
-from telebot.types import InlineKeyboardMarkup
 
 import game_runner
 from config import TOKEN
@@ -25,8 +24,7 @@ commands = [  # command description used in the "help" command
     "/cancelgame - Cancels an existing game. All data of the game will be lost",
     "/board - Prints the current board with naughtist and niceists tracks, presidential order and election counter",
     "/calltovote - Calls the players to vote",
-    "/players - Shows who has joined the current game",
-    "/ping - Pong (v420.69)",
+    "/ping - Ping",
 ]
 
 symbols = [
@@ -69,12 +67,11 @@ def callback_choose_chancellor(call):
         print("Game's board is None!")
         return
     print("Game's board is not None, proceeding to nominate_chosen_chancellor")
-
     chosen_chancellor = None
+    print("TYPE: ", type(p.user_id))
     chosen_chancellor = next(
         (p for p in game.get_players() if p.user_id == int(chosen_uid)), None
     )
-
     if chosen_chancellor is None:
         bot.answer_callback_query(call.id, text="Unknown player", show_alert=True)
         print("CHANCELLOR ERROR:", chosen_chancellor)
@@ -260,6 +257,13 @@ def choose_choose(call):
     game.turn = game.player_sequence.index(chosen_player)
 
     # Inform the players and start the next round
+    bot.send_message(
+        call.from_user.id, f"You chose {chosen_player.name} as the next president!"
+    )
+    bot.send_message(
+        game.chat_id,
+        f"President {game.board.state.president.name} chose {chosen_player.name} as the next president.",
+    )
     GamesController.save_game_state(game.chat_id)
     game_runner.start_next_round(bot, game)
 
@@ -287,6 +291,10 @@ def choose_inspect(call):
             reply_markup=new_markup,
         )
 
+        bot.send_message(
+            game.chat_id,
+            f"President {game.board.state.president.name} inspected {chosen.name}.",
+        )
         GamesController.save_game_state(game.chat_id)
         game_runner.start_next_round(bot, game)
     else:
@@ -386,7 +394,6 @@ def start_game(message):
     else:
         start_message = game.start_game(bot, game)
         bot.send_message(chat_id, start_message)
-        bot.send_message(chat_id, game.print_board())
 
 
 @bot.message_handler(commands=["join"])
@@ -499,6 +506,11 @@ def send_help(message):
     bot.send_message(chat_id, help_text)
 
 
+@bot.message_handler(commands=["ping"])
+def send_ping(message):
+    bot.send_message(message.chag.id, "Pong (v420.69)")
+
+
 @bot.message_handler(commands=["symbols"])
 def send_symbols(message):
     chat_id = message.chat.id
@@ -535,11 +547,6 @@ def calltovote(message):
             )
     except Exception as e:
         bot.send_message(chat_id, str(e))
-
-
-@bot.message_handler(commands=["ping"])
-def send_pong(message):
-    bot.send_message(message.chat.id, "Pong (v420.69)")
 
 
 bot.infinity_polling()
