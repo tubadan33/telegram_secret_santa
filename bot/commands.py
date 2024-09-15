@@ -1,15 +1,12 @@
 import datetime
-import pickle
 import re
-import time
 
 import telebot
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import game_runner
-from config import TEST, TOKEN
-from game.game_functions import SecretSantaGame, create_new_game
-from game.test_player import TestPlayer
+from config import TOKEN
+from game.game_functions import SecretSantaGame
 from gamecontroller import GamesController
 
 bot = telebot.TeleBot(TOKEN)
@@ -144,9 +141,6 @@ def callback_vote(call):
             bot.answer_callback_query(
                 call.id, text="You already voted", show_alert=True
             )
-        print(len(game.votes), " ", len(game.get_players()))
-        print("STARTING CALLBACK BOT VOTING")
-        game_runner.start_bot_voting(bot, game)
 
 
 @bot.callback_query_handler(
@@ -340,7 +334,7 @@ def help(message):
 
 
 @bot.message_handler(commands=["start"])
-def start_game(message):
+def start(message):
     chat_id = message.chat.id
     bot.send_message(
         chat_id,
@@ -408,7 +402,7 @@ def start_game(message):
     elif game.game_phase == "game_started":
         bot.send_message(chat_id, "The game is already running!")
         # and not is_admin(message.from_user.id, chat_id)
-    elif message.from_user.id != game.initiator_id and bot.getChatMember(
+    elif message.from_user.id != game.initiator_id and bot.get_chat_member(
         chat_id, message.from_user.id
     ).status not in ("administrator", "creator"):
         bot.send_message(

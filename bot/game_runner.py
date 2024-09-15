@@ -6,8 +6,6 @@ import random
 import datetime
 import time
 import re
-from config import TEST
-import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 
 test_timeout = False
@@ -162,7 +160,6 @@ def choose_chancellor(bot, game):
 
 
 def nominate_chosen_chancellor(bot, game):
-    print("TEST PLAYER nominate_chosen_chancellor called")
     print(
         "President %s (%s) nominated %s (%s)"
         % (
@@ -185,48 +182,13 @@ def nominate_chosen_chancellor(bot, game):
     vote(bot, game)
 
 
-def handle_vote_timeout(bot, player, game):
-    # Check if the user has already voted
-    if player.user_id not in game.votes:
-        # Cast a random vote
-        random_vote = random.choice(["Ja", "Nein"])
-        game.votes[player.user_id] = random_vote
-        message_id = game.vote_messages.get(player.user_id)
-        print(message_id)
-        if message_id:
-            bot.edit_message_text(
-                chat_id=player.user_id,
-                message_id=message_id,
-                text="You took too long to vote. A random vote was cast for you.",
-            )
-        timer = game.get_user_timer(player.user_id)
-        game.clear_vote_messages()
-        if timer:
-            timer.cancel()
-        game.delete_user_timer(player.user_id)
-        print("Cleared Timer")
-        start_bot_voting(bot, game)
-        del timer
-
-
-def check_and_count_votes(bot, game):
-    if len(game.votes) == len(game.get_players()):
-        count_votes(bot, game)
-
-
 def vote(bot, game):
     print("vote called")
 
     game.dateinitvote = datetime.datetime.now()
     strcid = str(game.chat_id)
-    bot_throttle = 8
-    real_players = [
-        player
-        for player in game.get_players()
-        if not re.search("test", str(player.user_id)) and player.alive
-    ]
 
-    for player in real_players:
+    for player in game.get_players_alive:
         # Create vote buttons for this specific player
         btns = [
             [
@@ -254,19 +216,6 @@ def vote(bot, game):
         )
         print("MESSAGE ID: ", vote_message.message_id)
         game.vote_messages[player.user_id] = vote_message.message_id
-
-
-def start_bot_voting(bot, game):
-    print("STARTING BOT VOTING")
-    for player in game.get_players():
-        if re.search("test", str(player.user_id)):
-            if player.alive:
-                player_vote = random.choice(["Ja", "Nein"])
-                game.votes[player.user_id] = player_vote
-                print(
-                    f"Test player {player.name} ({player.user_id}) voted {player_vote}"
-                )
-    check_and_count_votes(bot, game)
 
 
 def check_and_count_votes(bot, game):
@@ -642,48 +591,6 @@ def action_policy(bot, game):
     start_next_round(bot, game)
 
 
-def bot_kill_player(bot, game, player_to_kill):
-    print(f"kill_player called for player: {player_to_kill.name}")
-
-    if player_to_kill.alive:
-        # Remove player's vote if they have voted
-        if player_to_kill.user_id in game.votes:
-            del game.votes[player_to_kill.user_id]
-
-        player_to_kill.alive = False
-        if (
-            game.player_sequence.index(player_to_kill)
-            <= game.board.state.player_counter
-        ):
-            game.board.state.player_counter -= 1
-        game.player_sequence.remove(player_to_kill)
-        game.board.state.dead += 1
-        print(
-            f"President {game.board.state.president.name} killed {player_to_kill.name}"
-        )
-        bot.send_message(
-            game.chat_id,
-            f"{game.board.state.president.name} killed {player_to_kill.name}!",
-        )
-
-        if player_to_kill.role == "Santa":
-            bot.send_message(
-                game.chat_id,
-                f"President {game.board.state.president.name} killed {player_to_kill.name}. ",
-            )
-            end_game(bot, game, 2)
-        else:
-            bot.send_message(
-                game.chat_id,
-                f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Santa. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!",
-            )
-            bot.send_message(game.chat_id, game.board.print_board())
-            GamesController.save_game_state(game.chat_id)
-            start_next_round(bot, game)
-    else:
-        print(f"{player_to_kill.name} is already dead!")
-
-
 def action_kill(bot, game):
     print("action_kill called")
     btns = []
@@ -709,36 +616,6 @@ def action_kill(bot, game):
             "You have to kill one person. You can discuss your decision with the others. Choose wisely!",
             reply_markup=kill_markup,
         )
-    else:
-        alive_players = [
-            player
-            for player in game.get_players()
-            if player.alive == True and player != game.board.state.president
-        ]
-        if alive_players:  # If there is at least one player to kill
-            player_to_kill = random.choice(alive_players)  # Choose a random player
-            bot_kill_player(bot, game, player_to_kill)
-
-
-def bot_choose_next_president(bot, game):
-    print("bot_choose_next_president called")
-    alive_players = [
-        player
-        for player in game.get_players()
-        if player.alive == True and player != game.board.state.president
-    ]
-    if alive_players:  # If there is at least one player to choose
-        chosen_president = random.choice(alive_players)  # Choose a random player
-        print("BOT ASIGN PRESIDENT: ", chosen_president)
-        game.board.state.chosen_president = (
-            chosen_president  # Assign the chosen player as the next president
-        )
-        bot.send_message(
-            game.chat_id,
-            f"{game.board.state.president.name} chose {chosen_president.name} as the next presidential candidate!",
-        )
-    else:
-        print("No player available to choose as next president")
 
 
 def action_choose(bot, game):
@@ -765,25 +642,6 @@ def action_choose(bot, game):
             "You get to choose the next presidential candidate. Afterwards the order resumes back to normal. Choose wisely!",
             reply_markup=inspectMarkup,
         )
-    else:
-        bot_choose_next_president(bot, game)
-
-
-def bot_inspect_player(bot, game):
-    print("bot_inspect_player called")
-    alive_players = [
-        player
-        for player in game.get_players()
-        if player.alive == True and player != game.board.state.president
-    ]
-    if alive_players:  # If there is at least one player to inspect
-        player_to_inspect = random.choice(alive_players)  # Choose a random player
-        bot.send_message(
-            game.chat_id,
-            f"{game.board.state.president.name} inspected {player_to_inspect.name} and found out their party membership is {player_to_inspect.party_membership}!",
-        )
-    else:
-        print("No player available to inspect")
 
 
 def action_inspect(bot, game):
@@ -809,8 +667,6 @@ def action_inspect(bot, game):
             "You may see the party membership of one player. Which do you want to know? Choose wisely!",
             reply_markup=inspectMarkup,
         )
-    else:
-        bot_inspect_player(bot, game)
 
 
 def start_next_round(bot, game):
@@ -1012,4 +868,3 @@ def shuffle_policy_pile(bot, game):
             game.chat_id,
             "There were not enough cards left on the policy pile so I shuffled the rest with the discard pile!",
         )
-
