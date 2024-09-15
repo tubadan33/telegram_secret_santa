@@ -4,7 +4,6 @@ import game_runner
 from constants.Cards import playerSets, policies
 from game.board import Board
 from game.player import Player
-from game.test_player import TestPlayer
 
 from .elf_name import *
 
@@ -59,7 +58,6 @@ class SecretSantaGame:
         self.set_player_count(len(self.players))
         self.assign_roles()
 
-        player_number = len(self.get_players())
         game_runner.inform_players(bot, game)
         game_runner.inform_naughtists(bot, game)
 
@@ -97,12 +95,7 @@ class SecretSantaGame:
         return self.board
 
     def get_players_alive(self):
-        players_alive = []
-        players = self.get_players()
-        for player in players:
-            if player.alive:
-                players_alive.append(player)
-        return players_alive
+        return [p for p in self.get_players() if p.alive]
 
     def print_roles(self):
         rtext = ""

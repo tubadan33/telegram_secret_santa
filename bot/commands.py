@@ -25,6 +25,7 @@ commands = [  # command description used in the "help" command
     "/board - Prints the current board with naughtist and niceists tracks, presidential order and election counter",
     "/calltovote - Calls the players to vote",
     "/players - Shows who has joined the current game",
+    "/ping - Pong (v420.69)",
 ]
 
 symbols = [
@@ -50,7 +51,6 @@ def callback_choose_chancellor(call):
     strcid, _, chosen_uid = call.data.partition("_choose_chancellor_")
     print(f"Checking player with user_id: {chosen_uid}")
     chat_id = int(strcid)
-    is_test_player = re.search("test", chosen_uid)
     print(f"Attempting to get game with chat_id: {chat_id}")
     game = GamesController.get_game(chat_id)
     if game is None:
@@ -68,17 +68,12 @@ def callback_choose_chancellor(call):
         print("Game's board is None!")
         return
     print("Game's board is not None, proceeding to nominate_chosen_chancellor")
+
     chosen_chancellor = None
-    for p in game.get_players():
-        print("TYPE: ", type(p.user_id))
-    if is_test_player:
-        chosen_chancellor = next(
-            (p for p in game.get_players() if p.user_id == chosen_uid), None
-        )
-    else:
-        chosen_chancellor = next(
-            (p for p in game.get_players() if p.user_id == int(chosen_uid)), None
-        )
+    chosen_chancellor = next(
+        (p for p in game.get_players_alive() if p.user_id == int(chosen_uid)), None
+    )
+
     if chosen_chancellor is None:
         bot.answer_callback_query(call.id, text="Unknown player", show_alert=True)
         print("CHANCELLOR ERROR:", chosen_chancellor)
@@ -130,12 +125,6 @@ def callback_vote(call):
                 uid,
                 call.message.message_id,
             )
-            # After the vote has been recorded, cancel the timer for this user
-            timer = game.get_user_timer(uid)
-            if timer:
-                timer.cancel()
-                del timer
-                game.delete_user_timer(uid)
 
         else:
             bot.answer_callback_query(
@@ -198,10 +187,7 @@ def choose_kill(call):
 
     strcid, _, answer = call.data.partition("_kill_")
     chat_id = int(strcid)
-    if answer.startswith("test"):
-        player_to_kill_id = answer  # 'test2'
-    else:
-        player_to_kill_id = int(answer)
+    player_to_kill_id = int(answer)
 
     game = GamesController.get_game(chat_id)
 
@@ -273,14 +259,6 @@ def choose_choose(call):
     game.turn = game.player_sequence.index(chosen_player)
 
     # Inform the players and start the next round
-    if not re.search("test", str(chosen_player.user_id)):
-        bot.send_message(
-            call.from_user.id, f"You chose {chosen_player.name} as the next president!"
-        )
-        bot.send_message(
-            game.chat_id,
-            f"President {game.board.state.president.name} chose {chosen_player.name} as the next president.",
-        )
     GamesController.save_game_state(game.chat_id)
     game_runner.start_next_round(bot, game)
 
@@ -308,11 +286,6 @@ def choose_inspect(call):
             reply_markup=new_markup,
         )
 
-        if not re.search("test", str(chosen.user_id)):
-            bot.send_message(
-                game.chat_id,
-                f"President {game.board.state.president.name} inspected {chosen.name}.",
-            )
         GamesController.save_game_state(game.chat_id)
         game_runner.start_next_round(bot, game)
     else:
@@ -560,6 +533,11 @@ def calltovote(message):
             )
     except Exception as e:
         bot.send_message(chat_id, str(e))
+
+
+@bot.message_handler(commands=["ping"])
+def send_pong(message):
+    bot.send_message(message.chat.id, "Pong (v420.69)")
 
 
 bot.infinity_polling()
