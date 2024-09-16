@@ -34,7 +34,7 @@ def start_round(bot, game):
         if (
             hasattr(game.board.state, "chosen_president_index")
             and game.board.state.chosen_president_index is not None
-        )
+        ):
             game.turn = game.board.state.chosen_president_index
             game.board.state.chosen_president_index = None  # reset the saved index
         # Now advance the turn in normal sequence
