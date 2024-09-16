@@ -122,6 +122,8 @@ def callback_vote(call):
                 uid,
                 call.message.message_id,
             )
+        if len(game.votes) == len(game.get_players_alive()):
+            game_runner.check_and_count_votes(bot, game)
 
         else:
             bot.answer_callback_query(

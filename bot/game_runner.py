@@ -34,7 +34,7 @@ def start_round(bot, game):
         if (
             hasattr(game.board.state, "chosen_president_index")
             and game.board.state.chosen_president_index is not None
-        ):
+        )
             game.turn = game.board.state.chosen_president_index
             game.board.state.chosen_president_index = None  # reset the saved index
         # Now advance the turn in normal sequence
@@ -181,7 +181,6 @@ def vote(bot, game):
         )
         print("MESSAGE ID: ", vote_message.message_id)
         game.vote_messages[player.user_id] = vote_message.message_id
-    check_and_count_votes(bot, game)
 
 
 def check_and_count_votes(bot, game):
