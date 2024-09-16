@@ -122,13 +122,12 @@ def callback_vote(call):
                 uid,
                 call.message.message_id,
             )
-        if len(game.votes) == len(game.get_players_alive()):
-            game_runner.check_and_count_votes(bot, game)
-
         else:
             bot.answer_callback_query(
                 call.id, text="You already voted", show_alert=True
             )
+
+        game_runner.check_and_count_votes(bot, game)
 
 
 @bot.callback_query_handler(
@@ -509,7 +508,7 @@ def send_help(message):
 
 @bot.message_handler(commands=["ping"])
 def send_ping(message):
-    bot.send_message(message.chag.id, "Pong (v420.69)")
+    bot.send_message(message.chat.id, "Pong (v420.69)")
 
 
 @bot.message_handler(commands=["symbols"])

@@ -5,7 +5,6 @@ from telebot import types
 import random
 import datetime
 import time
-import re
 from apscheduler.schedulers.background import BackgroundScheduler
 
 scheduler = BackgroundScheduler()
@@ -247,7 +246,6 @@ def count_votes(bot, game):
 def voting_aftermath(bot, game, voting_success):
     print("voting_aftermath called")
     game.board.state.last_votes = {}
-    game.clear_user_timers()
     game.votes.clear()
     if voting_success:
         if (
