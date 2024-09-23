@@ -57,18 +57,6 @@ def start_round(bot, game):
 def choose_chancellor(bot, game):
     print("choose_chancellor called")
 
-    # Add this check at the beginning of your function
-    if (
-        game.player_sequence[game.turn].user_id
-        != game.board.state.nominated_president.user_id
-    ):
-        print(
-            "It is not the turn of",
-            game.board.state.nominated_president.name,
-            "to nominate a chancellor",
-        )
-        return
-
     strcid = str(game.chat_id)
     pres_player = None
     chan_player = None

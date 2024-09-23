@@ -472,16 +472,9 @@ def join(message, user=None, name=None):
 def cancel_game(message):
     chat_id = message.chat.id
     game = GamesController.get_game(chat_id)
-    # or is_admin(message.from_user.id, chat_id)
     if game:
-        if message.from_user.id == game.initiator_id:
-            GamesController.end_game(chat_id)
-            bot.reply_to(message, "The game has been cancelled.")
-        else:
-            bot.reply_to(
-                message,
-                "Only the initiator of the game or a group admin can cancel the game with /cancelgame",
-            )
+        GamesController.end_game(chat_id)
+        bot.reply_to(message, "The game has been cancelled.")
     else:
         bot.reply_to(
             message, "There is no game in this chat. Create a new game with /newgame"
