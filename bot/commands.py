@@ -387,8 +387,11 @@ def start_game(message):
             "Only the initiator of the game or a group admin can start the game with /startgame",
         )
     else:
-        start_message = game.start_game(bot, game)
-        bot.send_message(chat_id, start_message)
+        bot.send_message(
+            game.chat_id,
+            "The game has started!",
+        )
+        game.start_game(bot, game)
 
 
 @bot.message_handler(commands=["join"])
@@ -467,6 +470,7 @@ def join(message, user=None, name=None):
 def cancel_game(message):
     chat_id = message.chat.id
     game = GamesController.get_game(chat_id)
+    # or is_adm(message.from_user.id, chat_id)
     if game:
         GamesController.end_game(chat_id)
         bot.reply_to(message, "The game has been cancelled.")
@@ -534,7 +538,7 @@ def calltovote(message):
                 "There is no game in this chat. Create a new game with /newgame",
             )
     except Exception as e:
-        bot.send_message(chat_id, str(e))
+        bot.send_message(message.chat_id, str(e))
 
 
 bot.infinity_polling()

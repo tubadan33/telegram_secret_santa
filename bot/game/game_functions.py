@@ -66,7 +66,7 @@ class SecretSantaGame:
 
         game_runner.start_round(bot, game)
 
-        return "The game has started!"
+        return
 
     def next_turn(self):
         if len(self.upcoming_turns) == 0:

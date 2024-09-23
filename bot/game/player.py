@@ -8,7 +8,7 @@ class Player:
 
     def assign_role(self, role):
         self.role = role
-        self.party = 'niceist' if role == 'niceist' else 'naughtist'
+        self.party = "niceist" if role == "niceist" else "naughtist"
 
     def kill(self):
         self.alive = False

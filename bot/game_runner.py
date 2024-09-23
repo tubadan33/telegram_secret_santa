@@ -41,14 +41,16 @@ def start_round(bot, game):
         game.board.state.nominated_president = game.player_sequence[game.turn]
 
     # Send message about the nominated president
-    bot.send_message(
-        game.chat_id,
-        "The next presidential candidate is %s.\n%s, please nominate a Chancellor in our private chat!"
-        % (
-            game.board.state.nominated_president.name,
-            game.board.state.nominated_president.name,
-        ),
-    )
+    nom_text = f"The next presidental candidate is [{game.get_player_name_by_id(game.board.state.nominated_president.user_id)}](tg://user?id={game.board.state.nominated_president.user_id}).\n {game.board.state.nominated_president.name} please nominate a Chancellor in our private chat."
+    bot.send_message(game.chat_id, text=nom_text, parse_mode="Markdown")
+    # bot.send_message(
+    #     game.chat_id,
+    #     "The next presidential candidate is %s.\n%s, please nominate a Chancellor in our private chat!"
+    #     % (
+    #         game.board.state.nominated_president.name,
+    #         game.board.state.nominated_president.name,
+    #     ),
+    # )
     print("Round Starting, nom pres ", game.board.state.nominated_president)
 
     choose_chancellor(bot, game)
@@ -709,6 +711,8 @@ def inform_players(bot, game):
         "Let's start the game with %d players!\n%s\nCheck your private messages for your secret role!"
         % (player_number, print_player_info(player_number)),
     )
+    board = game.get_board().print_board()
+    bot.send_message(game.chat_id, board)
 
 
 def inform_naughtists(bot, game):
