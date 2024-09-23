@@ -333,8 +333,11 @@ def start(message):
 def load_crashed_game(message):
     chat_id = message.chat.id
     game = GamesController.get_game(chat_id)
-    if game is not None & game.get_game_phase() != "waiting_for_players":
-        bot.send_message(chat_id, "Game has started, cannot load prior game instance.")
+    if game:
+        if game.get_game_phase() != "waiting_for_players":
+            bot.send_message(
+                chat_id, "Game has started, cannot load prior game instance."
+            )
     else:
         with open("state_save/game_state.pkl", "rb") as file:
             GamesController.load_game_state(chat_id)
