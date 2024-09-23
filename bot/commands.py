@@ -56,13 +56,6 @@ def callback_choose_chancellor(call):
         print(f"No game found with chat_id: {chat_id}")
         return
     print(f"Game found with chat_id: {chat_id}")
-    if call.from_user.id != game.player_sequence[game.turn].user_id:
-        bot.answer_callback_query(
-            call.id,
-            text="It is not your turn to nominate a chancellor",
-            show_alert=True,
-        )
-        return
     if game.board is None:
         print("Game's board is None!")
         return
