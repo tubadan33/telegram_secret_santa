@@ -1,3 +1,11 @@
+DefaultGameStrings = {
+    "Hitler": "Hitler",
+    "Liberals": "Liberals",
+    "Liberal": "Liberal",
+    "Fascists": "Fascists",
+    "Fascist": "Fascist",
+}
+
 ChirstmasGameStrings = {
     "Hitler": "Santa",
     "Liberals": "Niceists",
@@ -8,8 +16,8 @@ ChirstmasGameStrings = {
 
 HalloweeenGameStrings = {
     "Hitler": "Dracula",
-    "Liberals": "Ghouls",
-    "Liberal": "Ghoul",
-    "Fascists": "Vampires",
-    "Fascist": "Vampire",
+    "Liberals": "Treats",
+    "Liberal": "Treat",
+    "Fascists": "Tricks",
+    "Fascist": "Trick",
 }
