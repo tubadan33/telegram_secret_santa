@@ -6,6 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 import game_runner
 from config import TOKEN
+from constants.Cards import gameStrings
 from game.game_functions import SecretSantaGame
 from gamecontroller import GamesController
 
@@ -16,13 +17,13 @@ scheduler.start()
 
 commands = [  # command description used in the "help" command
     "/help - Gives you information about the available commands",
-    "/start - Gives you a short piece of information about Secret Santa",
+    "/start - Gives you a short piece of information about Secret Hitler",
     "/symbols - Shows you all possible symbols of the board",
     "/newgame - Creates a new game",
     "/join - Joins an existing game",
     "/startgame - Starts an existing game when all players have joined",
     "/cancelgame - Cancels an existing game. All data of the game will be lost",
-    "/board - Prints the current board with naughtist and niceists tracks, presidential order and election counter",
+    "/board - Prints the current board with fascists and liberal tracks, presidential order and election counter",
     "/calltovote - Calls the players to vote",
     "/ping - Ping",
 ]
@@ -34,8 +35,8 @@ symbols = [
     "\U0001f50e" + " Presidential Power: Investigate Loyalty",  # inspection glass
     "\U0001f5e1" + " Presidential Power: Execution",  # knife
     "\U0001f454" + " Presidential Power: Call Special Election",  # tie
-    "\U0001f54a" + " niceists win",  # dove
-    "\u2620" + " naughtists win",  # skull
+    "\U0001f54a" + f" {gameStrings['Liberals']} win",  # dove
+    "\u2620" + f" {gameStrings['Fascists']} win",  # skull
 ]
 
 bot = telebot.TeleBot(TOKEN)
@@ -60,7 +61,6 @@ def callback_choose_chancellor(call):
         print("Game's board is None!")
         return
     print("Game's board is not None, proceeding to nominate_chosen_chancellor")
-    chosen_chancellor = None
     chosen_chancellor = next(
         (p for p in game.get_players() if p.user_id == int(chosen_uid)), None
     )
@@ -124,7 +124,7 @@ def callback_vote(call):
 
 
 @bot.callback_query_handler(
-    func=lambda call: re.match(r"-?\d+_(naughtist|niceist)$", call.data)
+    func=lambda call: re.match(rf"-?\d+_({gameStrings['Fascist']}|{gameStrings['Liberal']})$", call.data)
 )
 def choose_policy(call):
     print(f"choose_policy called with data: {call.data}")
@@ -143,8 +143,10 @@ def choose_policy(call):
                 discard_policy_index = i
                 break
         if discard_policy_index is not None:
-            game.board.discards.append(
-                game.board.state.drawn_policies.pop(discard_policy_index)
+            discard = game.board.state.drawn_policies.pop(discard_policy_index)
+            game.board.discards.append(discard)
+            bot.send_message(
+                call.message.chat.id, f"The {discard} policy will be discarded"
             )
         bot.edit_message_reply_markup(
             chat_id=call.message.chat.id, message_id=call.message.message_id
@@ -209,7 +211,7 @@ def choose_kill(call):
         reply_markup=new_markup,
     )
 
-    if player_to_kill.role == "Santa":
+    if player_to_kill.role == gameStrings["Hitler"]:
         bot.send_message(
             chat_id,
             f"President {game.board.state.president.name} killed {player_to_kill.name}. ",
@@ -218,7 +220,7 @@ def choose_kill(call):
     else:
         bot.send_message(
             chat_id,
-            f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Santa. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!",
+            f"President {game.board.state.president.name} killed {player_to_kill.name} who was not {gameStrings['Hitler']}. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!",
         )
         bot.send_message(chat_id, game.board.print_board())
         GamesController.save_game_state(game.chat_id)
@@ -313,12 +315,12 @@ def start(message):
     chat_id = message.chat.id
     bot.send_message(
         chat_id,
-        '"Secret Santa is a social deduction game for 5-10 people about finding and stopping the Secret Santa.'
-        " The majority of players are niceists. If they can learn to trust each other, they have enough "
-        "votes to control the table and win the game. But some players are naughtists. They will say whatever "
-        "it takes to get elected, enact their agenda, and blame others for the fallout. The niceists must "
-        "work together to discover the truth before the naughtists install their cold-blooded leader and win "
-        'the game."\n- official description of Secret Santa\n\nAdd me to a group and type /newgame to create a game!',
+        '"Secret Hitler is a social deduction game for 5-10 people about finding and stopping the Secret Hitler.'
+        " The majority of players are liberals. If they can learn to trust each other, they have enough "
+        "votes to control the table and win the game. But some players are fascists. They will say whatever "
+        "it takes to get elected, enact their agenda, and blame others for the fallout. The liberals must "
+        "work together to discover the truth before the fascists install their cold-blooded leader and win "
+        'the game."\n- official description of Secret Hitler\n\nAdd me to a group and type /newgame to create a game!',
     )
 
 

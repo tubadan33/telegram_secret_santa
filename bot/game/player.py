@@ -1,3 +1,6 @@
+from constants.Cards import gameStrings
+
+
 class Player:
     def __init__(self, user_id, name):
         self.user_id = user_id
@@ -8,7 +11,7 @@ class Player:
 
     def assign_role(self, role):
         self.role = role
-        self.party = "niceist" if role == "niceist" else "naughtist"
+        self.party = gameStrings["Liberal"] if role == gameStrings["Liberal"] else gameStrings["Fascist"]
 
     def kill(self):
         self.alive = False
