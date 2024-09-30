@@ -674,11 +674,11 @@ def get_membership(role):
 
 def print_player_info(player_number):
     if player_number == 5:
-        return f"There are 3 {gameStrings['Liberals']}, 1 {gameStrings['Fascist']} and {gameStrings['Hitler']}. {gameStrings['Hitler']}anta knows who the {gameStrings['Fascist']} is."
+        return f"There are 3 {gameStrings['Liberals']}, 1 {gameStrings['Fascist']} and {gameStrings['Hitler']}. {gameStrings['Hitler']} knows who the {gameStrings['Fascist']} is."
     elif player_number == 6:
-        return f"There are 4 {gameStrings['Liberals']}, 1 {gameStrings['Fascist']} and {gameStrings['Hitler']}. {gameStrings['Hitler']}anta knows who the {gameStrings['Fascist']} is."
+        return f"There are 4 {gameStrings['Liberals']}, 1 {gameStrings['Fascist']} and {gameStrings['Hitler']}. {gameStrings['Hitler']} knows who the {gameStrings['Fascist']} is."
     elif player_number == 7:
-        return f"There are 4 {gameStrings['Liberals']}, 2 {gameStrings['Fascists']} and {gameStrings['Hitler']}. {gameStrings['Hitler']}anta doesn't know who the {gameStrings['Fascists']} are."
+        return f"There are 4 {gameStrings['Liberals']}, 2 {gameStrings['Fascists']} and {gameStrings['Hitler']}. {gameStrings['Hitler']} doesn't know who the {gameStrings['Fascists']} are."
     elif player_number == 8:
         return f"There are 5 {gameStrings['Liberals']}, 2 {gameStrings['Fascists']} and {gameStrings['Hitler']}. {gameStrings['Hitler']} doesn't know who the {gameStrings['Fascists']} are."
     elif player_number == 9:

@@ -24,7 +24,7 @@ class Board(object):
 
     def print_board(self):
         board = f"--- {gameStrings['Liberal']} acts ---\n"
-        for i in range():
+        for i in range(5):
             if i < self.state.liberal_track:
                 board += u"\u2716\uFE0F" + " "  # X
             elif i >= self.state.liberal_track and i == 4:
