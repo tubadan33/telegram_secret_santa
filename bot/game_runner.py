@@ -735,6 +735,9 @@ def inform_fascists(bot, game):
         elif role == gameStrings['Hitler']:
             if player_number <= 6:
                 naughtist = next(p for p in game.get_players() if p.role == gameStrings['Fascist'])
+                bot.send_message(
+                    player.user_id, f"Your fellow {gameStrings['Fascist']} is: {naughtist.name}"
+                )
         elif role == gameStrings['Liberal']:
             pass
         else:
