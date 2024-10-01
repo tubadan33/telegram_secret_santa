@@ -7,6 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv, dotenv_values
 
 import game_runner
+from constants.Cards import gameStrings
 from game.game_functions import SecretSantaGame
 from gamecontroller import GamesController
 
@@ -33,13 +34,13 @@ bot.set_webhook()
 
 commands = [  # command description used in the "help" command
     "/help - Gives you information about the available commands",
-    "/start - Gives you a short piece of information about Secret Santa",
+    "/start - Gives you a short piece of information about Secret Hitler",
     "/symbols - Shows you all possible symbols of the board",
     "/newgame - Creates a new game",
     "/join - Joins an existing game",
     "/startgame - Starts an existing game when all players have joined",
     "/cancelgame - Cancels an existing game. All data of the game will be lost",
-    "/board - Prints the current board with naughtist and niceists tracks, presidential order and election counter",
+    "/board - Prints the current board with fascists and liberal tracks, presidential order and election counter",
     "/calltovote - Calls the players to vote",
     "/ping - Ping",
 ]
@@ -51,8 +52,8 @@ symbols = [
     "\U0001f50e" + " Presidential Power: Investigate Loyalty",  # inspection glass
     "\U0001f5e1" + " Presidential Power: Execution",  # knife
     "\U0001f454" + " Presidential Power: Call Special Election",  # tie
-    "\U0001f54a" + " niceists win",  # dove
-    "\u2620" + " naughtists win",  # skull
+    "\U0001f54a" + f" {gameStrings['Liberals']} win",  # dove
+    "\u2620" + f" {gameStrings['Fascists']} win",  # skull
 ]
 
 
@@ -70,18 +71,10 @@ def callback_choose_chancellor(call):
         print(f"No game found with chat_id: {chat_id}")
         return
     print(f"Game found with chat_id: {chat_id}")
-    if call.from_user.id != game.player_sequence[game.turn].user_id:
-        bot.answer_callback_query(
-            call.id,
-            text="It is not your turn to nominate a chancellor",
-            show_alert=True,
-        )
-        return
     if game.board is None:
         print("Game's board is None!")
         return
     print("Game's board is not None, proceeding to nominate_chosen_chancellor")
-    chosen_chancellor = None
     chosen_chancellor = next(
         (p for p in game.get_players() if p.user_id == int(chosen_uid)), None
     )
@@ -136,15 +129,16 @@ def callback_vote(call):
                 uid,
                 call.message.message_id,
             )
-
         else:
             bot.answer_callback_query(
                 call.id, text="You already voted", show_alert=True
             )
 
+        game_runner.check_and_count_votes(bot, game)
+
 
 @bot.callback_query_handler(
-    func=lambda call: re.match(r"-?\d+_(naughtist|niceist)$", call.data)
+    func=lambda call: re.match(rf"-?\d+_({gameStrings['Fascist']}|{gameStrings['Liberal']})$", call.data)
 )
 def choose_policy(call):
     print(f"choose_policy called with data: {call.data}")
@@ -163,8 +157,10 @@ def choose_policy(call):
                 discard_policy_index = i
                 break
         if discard_policy_index is not None:
-            game.board.discards.append(
-                game.board.state.drawn_policies.pop(discard_policy_index)
+            discard = game.board.state.drawn_policies.pop(discard_policy_index)
+            game.board.discards.append(discard)
+            bot.send_message(
+                call.message.chat.id, f"The {discard} policy will be discarded"
             )
         bot.edit_message_reply_markup(
             chat_id=call.message.chat.id, message_id=call.message.message_id
@@ -229,7 +225,7 @@ def choose_kill(call):
         reply_markup=new_markup,
     )
 
-    if player_to_kill.role == "Santa":
+    if player_to_kill.role == gameStrings["Hitler"]:
         bot.send_message(
             chat_id,
             f"President {game.board.state.president.name} killed {player_to_kill.name}. ",
@@ -238,7 +234,7 @@ def choose_kill(call):
     else:
         bot.send_message(
             chat_id,
-            f"President {game.board.state.president.name} killed {player_to_kill.name} who was not Santa. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!",
+            f"President {game.board.state.president.name} killed {player_to_kill.name} who was not {gameStrings['Hitler']}. {player_to_kill.name}, you are dead now and are not allowed to talk anymore!",
         )
         bot.send_message(chat_id, game.board.print_board())
         GamesController.save_game_state(game.chat_id)
@@ -333,12 +329,12 @@ def start(message):
     chat_id = message.chat.id
     bot.send_message(
         chat_id,
-        '"Secret Santa is a social deduction game for 5-10 people about finding and stopping the Secret Santa.'
-        " The majority of players are niceists. If they can learn to trust each other, they have enough "
-        "votes to control the table and win the game. But some players are naughtists. They will say whatever "
-        "it takes to get elected, enact their agenda, and blame others for the fallout. The niceists must "
-        "work together to discover the truth before the naughtists install their cold-blooded leader and win "
-        'the game."\n- official description of Secret Santa\n\nAdd me to a group and type /newgame to create a game!',
+        '"Secret Hitler is a social deduction game for 5-10 people about finding and stopping the Secret Hitler.'
+        " The majority of players are liberals. If they can learn to trust each other, they have enough "
+        "votes to control the table and win the game. But some players are fascists. They will say whatever "
+        "it takes to get elected, enact their agenda, and blame others for the fallout. The liberals must "
+        "work together to discover the truth before the fascists install their cold-blooded leader and win "
+        'the game."\n- official description of Secret Hitler\n\nAdd me to a group and type /newgame to create a game!',
     )
 
 
@@ -346,9 +342,11 @@ def start(message):
 def load_crashed_game(message):
     chat_id = message.chat.id
     game = GamesController.get_game(chat_id)
-    print(game.get_game_phase())
-    if game.get_game_phase() != "waiting_for_players":
-        bot.send_message(chat_id, "Game has started, cannot load prior game instance.")
+    if game:
+        if game.get_game_phase() != "waiting_for_players":
+            bot.send_message(
+                chat_id, "Game has started, cannot load prior game instance."
+            )
     else:
         with open("state_save/game_state.pkl", "rb") as file:
             GamesController.load_game_state(chat_id)
@@ -405,8 +403,11 @@ def start_game(message):
             "Only the initiator of the game or a group admin can start the game with /startgame",
         )
     else:
-        start_message = game.start_game(bot, game)
-        bot.send_message(chat_id, start_message)
+        bot.send_message(
+            game.chat_id,
+            "The game has started!",
+        )
+        game.start_game(bot, game)
 
 
 @bot.message_handler(commands=["join"])
@@ -485,16 +486,10 @@ def join(message, user=None, name=None):
 def cancel_game(message):
     chat_id = message.chat.id
     game = GamesController.get_game(chat_id)
-    # or is_admin(message.from_user.id, chat_id)
+    # or is_adm(message.from_user.id, chat_id)
     if game:
-        if message.from_user.id == game.initiator_id:
-            GamesController.end_game(chat_id)
-            bot.reply_to(message, "The game has been cancelled.")
-        else:
-            bot.reply_to(
-                message,
-                "Only the initiator of the game or a group admin can cancel the game with /cancelgame",
-            )
+        GamesController.end_game(chat_id)
+        bot.reply_to(message, "The game has been cancelled.")
     else:
         bot.reply_to(
             message, "There is no game in this chat. Create a new game with /newgame"
@@ -521,7 +516,7 @@ def send_help(message):
 
 @bot.message_handler(commands=["ping"])
 def send_ping(message):
-    bot.send_message(message.chag.id, "Pong (v420.69)")
+    bot.send_message(message.chat.id, "Pong (v420.69)")
 
 
 @bot.message_handler(commands=["symbols"])
@@ -559,7 +554,7 @@ def calltovote(message):
                 "There is no game in this chat. Create a new game with /newgame",
             )
     except Exception as e:
-        bot.send_message(chat_id, str(e))
+        bot.send_message(message.chat_id, str(e))
 
 
 bot.infinity_polling()

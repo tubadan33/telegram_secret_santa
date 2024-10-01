@@ -1,5 +1,3 @@
-import random
-
 import game_runner
 from constants.Cards import playerSets, policies
 from game.board import Board
@@ -22,9 +20,9 @@ class SecretSantaGame:
         self.policy_deck = policies.copy()
         random.shuffle(self.policy_deck)
         self.policies_in_play = []
-        self.niceist_policies_passed = 0
-        self.naughtist_policies_passed = 0
-        self.naughtist_track_actions = None
+        self.liberal_policies_passed = 0
+        self.fascist_policies_passed = 0
+        self.fascist_track_actions = None
         self.player_count = player_count
         self.turn = None
         self.choose_president_turn = None
@@ -33,7 +31,7 @@ class SecretSantaGame:
     def set_player_count(self, player_count):
         self.player_count = player_count
         self.board = Board(player_count, self)
-        self.naughtist_track_actions = playerSets[player_count]["track"]
+        self.fascist_track_actions = playerSets[player_count]["track"]
 
     def add_player(self, user_id, name):
         player = Player(user_id, name)
@@ -59,14 +57,14 @@ class SecretSantaGame:
         self.assign_roles()
 
         game_runner.inform_players(bot, game)
-        game_runner.inform_naughtists(bot, game)
+        game_runner.inform_fascists(bot, game)
 
         random.shuffle(self.player_sequence)
         self.upcoming_turns = self.player_sequence.copy()
 
         game_runner.start_round(bot, game)
 
-        return "The game has started!"
+        return
 
     def next_turn(self):
         if len(self.upcoming_turns) == 0:
