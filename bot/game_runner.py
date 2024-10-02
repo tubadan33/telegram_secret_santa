@@ -47,6 +47,7 @@ def start_round(bot, game):
     bot.send_message(game.chat_id, text=nom_text, parse_mode="Markdown")
     print("Round Starting, nom pres ", game.board.state.nominated_president)
 
+    GamesController.save_game_state(game.chat_id)
     choose_chancellor(bot, game)
 
 
@@ -259,6 +260,10 @@ def voting_aftermath(bot, game, voting_success):
 
 def draw_policies(bot, game):
     print("draw_policies called")
+    draw_policies_text = f"{game.board.state.president.name} drew threw polices.\n[{game.board.state.president.name}](tg://user?id={game.board.state.president.user_id}) please choose a policy to discard in our private chat."
+    bot.send_message(game.chat_id,
+                     text=draw_policies_text,
+                     parse_mode='Markdown')
     strcid = str(game.chat_id)
     game.board.state.veto_refused = False
     # Ensure that there are enough policies to draw from
@@ -292,7 +297,7 @@ def draw_policies(bot, game):
 
 def pass_two_policies(bot, game):
     print("pass_two_policies called")
-    pass_two_text = f"{game.board.state.president.name} passed two policies to {game.board.state.chancellor.name}!\n[{game.get_player_name_by_id(game.board.state.chancellor.name)}](tg://user?id={game.board.state.chancellor.user_id}) please choose a policy our private chat."
+    pass_two_text = f"{game.board.state.president.name} passed two policies to {game.board.state.chancellor.name}!\n[{game.board.state.chancellor.name}](tg://user?id={game.board.state.chancellor.user_id}) please choose a policy our private chat."
     bot.send_message(game.chat_id,
                      text=pass_two_text,
                      parse_mode='Markdown')
