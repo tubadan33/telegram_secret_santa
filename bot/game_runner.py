@@ -491,6 +491,7 @@ def do_anarchy(bot, game):
     game.board.state.chancellor = None
     top_policy = game.board.policies.pop(0)
     game.board.state.last_votes = {}
+    game.votes.clear()
     enact_policy(bot, game, top_policy, True)
 
 

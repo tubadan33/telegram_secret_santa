@@ -115,16 +115,16 @@ def callback_vote(call):
                 uid,
                 call.message.message_id,
             )
+            game_runner.check_and_count_votes(bot, game)
         else:
             bot.answer_callback_query(
                 call.id, text="You already voted", show_alert=True
             )
 
-        game_runner.check_and_count_votes(bot, game)
 
 
 @bot.callback_query_handler(
-    func=lambda call: re.match(rf"-?\d+_({gameStrings['Fascist']}|{gameStrings['Liberal']})$", call.data)
+    func=lambda call: re.match(rf"-?\d+_({gameStrings['Fascist']}|{gameStrings['Liberal']}|veto)$", call.data)
 )
 def choose_policy(call):
     print(f"choose_policy called with data: {call.data}")
