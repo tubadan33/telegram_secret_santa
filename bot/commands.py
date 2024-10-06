@@ -1,18 +1,35 @@
 import datetime
+import os
 import re
 
 import telebot
 from apscheduler.schedulers.background import BackgroundScheduler
+from dotenv import load_dotenv, dotenv_values
 
 import game_runner
-from config import TOKEN
 from constants.Cards import gameStrings
 from game.game_functions import SecretSantaGame
 from gamecontroller import GamesController
 
-bot = telebot.TeleBot(TOKEN)
+load_dotenv()
+
+env = {
+    **dotenv_values(),
+    **os.environ
+}
+
+TELEGRAM_BOT_TOKEN = env.get("TELEGRAM_BOT_TOKEN")
+USER_ADMIN_ID = env.get("USER_ADMIN_ID")
+DEBUG_MODE = env.get("DEBUG_MODE", "false").lower() == "true"
+
+if TELEGRAM_BOT_TOKEN is None:
+    raise RuntimeError()
+
+
+bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 scheduler = BackgroundScheduler()
 scheduler.start()
+bot.set_webhook()
 
 
 commands = [  # command description used in the "help" command
@@ -38,9 +55,6 @@ symbols = [
     "\U0001f54a" + f" {gameStrings['Liberals']} win",  # dove
     "\u2620" + f" {gameStrings['Fascists']} win",  # skull
 ]
-
-bot = telebot.TeleBot(TOKEN)
-bot.set_webhook()
 
 
 @bot.callback_query_handler(
