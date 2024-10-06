@@ -61,6 +61,8 @@ class SecretSantaGame:
 
         random.shuffle(self.player_sequence)
         self.upcoming_turns = self.player_sequence.copy()
+        board = game.get_board().print_board()
+        bot.send_message(game.chat_id, board)
 
         game_runner.start_round(bot, game)
 

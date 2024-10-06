@@ -260,7 +260,7 @@ def voting_aftermath(bot, game, voting_success):
 
 def draw_policies(bot, game):
     print("draw_policies called")
-    draw_policies_text = f"{game.board.state.president.name} drew threw polices.\n[{game.board.state.president.name}](tg://user?id={game.board.state.president.user_id}) please choose a policy to discard in our private chat."
+    draw_policies_text = f"{game.board.state.president.name} drew three polices.\n[{game.board.state.president.name}](tg://user?id={game.board.state.president.user_id}) please choose a policy to discard in our private chat."
     bot.send_message(game.chat_id,
                      text=draw_policies_text,
                      parse_mode='Markdown')
@@ -715,8 +715,6 @@ def inform_players(bot, game):
         "Let's start the game with %d players!\n%s\nCheck your private messages for your secret role!"
         % (player_number, print_player_info(player_number)),
     )
-    board = game.get_board().print_board()
-    bot.send_message(game.chat_id, board)
 
 
 def inform_fascists(bot, game):
