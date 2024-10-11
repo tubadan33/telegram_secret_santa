@@ -307,7 +307,7 @@ def pass_two_policies(bot, game):
         btns.append(
             [types.InlineKeyboardButton(policy, callback_data=strcid + "_" + policy)]
         )
-    choosePolicyMarkup = types.InlineKeyboardMarkup(btns)
+    choose_policy_markup = types.InlineKeyboardMarkup(btns)
 
     if len(game.board.state.drawn_policies) != 2:
         print(
@@ -318,6 +318,7 @@ def pass_two_policies(bot, game):
         btns.append(
             [types.InlineKeyboardButton("Veto", callback_data=strcid + "_veto")]
         )
+        choose_policy_markup = types.InlineKeyboardMarkup(btns)
         bot.send_message(
             game.chat_id,
             "President %s gave two policies to Chancellor %s."
@@ -327,7 +328,7 @@ def pass_two_policies(bot, game):
             game.board.state.chancellor.user_id,
             "President %s gave you the following 2 policies. Which one do you want to enact? You can also use your Veto power."
             % game.board.state.president.name,
-            reply_markup=choosePolicyMarkup,
+            reply_markup=choose_policy_markup,
         )
 
     elif game.board.state.veto_refused:
@@ -335,7 +336,7 @@ def pass_two_policies(bot, game):
             game.board.state.chancellor.user_id,
             "President %s refused your Veto. Now you have to choose. Which one do you want to enact?"
             % game.board.state.president.name,
-            reply_markup=choosePolicyMarkup,
+            reply_markup=choose_policy_markup,
         )
 
     elif game.board.state.fascist_track < 5:
@@ -343,7 +344,7 @@ def pass_two_policies(bot, game):
             game.board.state.chancellor.user_id,
             "President %s gave you the following 2 policies. Which one do you want to enact?"
             % game.board.state.president.name,
-            reply_markup=choosePolicyMarkup,
+            reply_markup=choose_policy_markup,
         )
 
 
@@ -454,12 +455,12 @@ def choose_veto(bot, game, player_id, answer):
     print(f"choose_veto called with player_id: {player_id} and answer: {answer}")
 
     # Assuming you have a way to get player from player_id
-    player = game.get_player(player_id)
+    player_name = game.get_player_name_by_id(player_id)
 
     if answer == "yesveto":
         bot.send_message(
             game.chat_id,
-            f"{player.name} accepted the Veto. No policy was enacted but this counts as a failed election.",
+            f"{player_name} accepted the Veto. No policy was enacted but this counts as a failed election.",
         )
         game.board.discards.extend(game.board.state.drawn_policies)
         game.board.state.drawn_policies = []
@@ -469,15 +470,16 @@ def choose_veto(bot, game, player_id, answer):
 
         else:
             # call print_board and start_next_round functions here
-            pass  # Replace with the actual function calls
+            game.get_board().print_board()
+            start_next_round(bot, game)
     elif answer == "noveto":
         game.board.state.veto_refused = True
         bot.send_message(
             game.chat_id,
-            f"{player.name} refused the Veto. The Chancellor now has to choose a policy!",
+            f"{player_name} refused the Veto. The Chancellor now has to choose a policy!",
         )
         # call pass_two_policies function here
-        pass  # Replace with the actual function call
+        pass_two_policies(bot, game)
     else:
         print('choose_veto: Callback data can either be "yesveto" or "noveto".')
 

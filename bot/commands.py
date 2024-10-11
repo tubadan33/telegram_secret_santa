@@ -3,6 +3,7 @@ import re
 
 import telebot
 from apscheduler.schedulers.background import BackgroundScheduler
+from telebot import types
 
 import game_runner
 from config import TOKEN
@@ -13,7 +14,6 @@ from gamecontroller import GamesController
 bot = telebot.TeleBot(TOKEN)
 scheduler = BackgroundScheduler()
 scheduler.start()
-
 
 commands = [  # command description used in the "help" command
     "/help - Gives you information about the available commands",
@@ -122,9 +122,9 @@ def callback_vote(call):
             )
 
 
-
 @bot.callback_query_handler(
-    func=lambda call: re.match(rf"-?\d+_({gameStrings['Fascist']}|{gameStrings['Liberal']}|veto)$", call.data)
+    func=lambda call: re.match(rf"-?\d+_({gameStrings['Fascist']}|{gameStrings['Liberal']}|veto)$",
+                               call.data)
 )
 def choose_policy(call):
     print(f"choose_policy called with data: {call.data}")
@@ -155,7 +155,19 @@ def choose_policy(call):
     elif len(game.board.state.drawn_policies) == 2:
         if answer == "veto":
             # handle the veto request
-            game_runner.choose_veto(bot, game, call.from_user.id, answer)
+            btns = [types.InlineKeyboardButton("Accept Veto", callback_data=strcid + "_yesveto"),
+                    types.InlineKeyboardButton("Refuse Veto", callback_data=strcid + "_noveto")]
+            bot.send_message(
+                game.chat_id,
+                "Chancellor %s suggested a veto to President %s."
+                % (game.board.state.chancellor.name, game.board.state.president.name),
+            )
+            bot.send_message(
+                game.board.state.chancellor.user_id,
+                "Chancellor %s suggested a veto, would you like to accept?"
+                % game.board.state.chancellor.name,
+                reply_markup=types.InlineKeyboardMarkup(btns),
+            )
         else:
             # remove policy from drawn cards and enact, discard the other card
             for i in range(2):
@@ -172,6 +184,21 @@ def choose_policy(call):
         print(
             f"choose_policy: drawn_policies should be 3 or 2, but was {len(game.board.state.drawn_policies)}"
         )
+
+
+@bot.callback_query_handler(
+    func=lambda call: re.match(rf"-?\d+_(yesveto|noveto)$", call.data)
+)
+def choose_veto(call):
+    print(f"choose_veto called with data: {call.data}")
+
+    strcid, _, answer = call.data.partition("_")
+    chat_id = int(strcid)
+
+    # Get the game instance
+    game = GamesController.get_game(chat_id)
+
+    game_runner.choose_veto(bot, game, call.from_user.id, answer)
 
 
 @bot.callback_query_handler(func=lambda call: re.match(r"-?\w+_kill_\w+$", call.data))
@@ -382,7 +409,7 @@ def start_game(message):
         bot.send_message(chat_id, "The game is already running!")
         # and not is_admin(message.from_user.id, chat_id)
     elif message.from_user.id != game.initiator_id and bot.get_chat_member(
-        chat_id, message.from_user.id
+            chat_id, message.from_user.id
     ).status not in ("administrator", "creator"):
         bot.send_message(
             chat_id,
