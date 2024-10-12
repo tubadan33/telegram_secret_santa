@@ -155,8 +155,8 @@ def choose_policy(call):
     elif len(game.board.state.drawn_policies) == 2:
         if answer == "veto":
             # handle the veto request
-            btns = [types.InlineKeyboardButton("Accept Veto", callback_data=strcid + "_yesveto"),
-                    types.InlineKeyboardButton("Refuse Veto", callback_data=strcid + "_noveto")]
+            btns = [[types.InlineKeyboardButton("Accept Veto", callback_data=strcid + "_yesveto")],
+                    [types.InlineKeyboardButton("Refuse Veto", callback_data=strcid + "_noveto")]]
             veto_markup = types.InlineKeyboardMarkup(btns)
             bot.send_message(
                 game.chat_id,
