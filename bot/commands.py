@@ -157,16 +157,18 @@ def choose_policy(call):
             # handle the veto request
             btns = [types.InlineKeyboardButton("Accept Veto", callback_data=strcid + "_yesveto"),
                     types.InlineKeyboardButton("Refuse Veto", callback_data=strcid + "_noveto")]
+            veto_markup = types.InlineKeyboardMarkup(btns)
             bot.send_message(
                 game.chat_id,
                 "Chancellor %s suggested a veto to President %s."
                 % (game.board.state.chancellor.name, game.board.state.president.name),
             )
+
             bot.send_message(
-                game.board.state.chancellor.user_id,
+                game.board.state.president.user_id,
                 "Chancellor %s suggested a veto, would you like to accept?"
                 % game.board.state.chancellor.name,
-                reply_markup=types.InlineKeyboardMarkup(btns),
+                reply_markup=veto_markup,
             )
         else:
             # remove policy from drawn cards and enact, discard the other card
