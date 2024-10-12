@@ -154,6 +154,9 @@ def choose_policy(call):
         game_runner.pass_two_policies(bot, game)
     elif len(game.board.state.drawn_policies) == 2:
         if answer == "veto":
+            bot.edit_message_reply_markup(
+                chat_id=call.message.chat.id, message_id=call.message.message_id
+            )
             # handle the veto request
             btns = [[types.InlineKeyboardButton("Accept Veto", callback_data=strcid + "_yesveto")],
                     [types.InlineKeyboardButton("Refuse Veto", callback_data=strcid + "_noveto")]]
@@ -196,9 +199,12 @@ def choose_veto(call):
 
     strcid, _, answer = call.data.partition("_")
     chat_id = int(strcid)
-
     # Get the game instance
     game = GamesController.get_game(chat_id)
+
+    bot.edit_message_reply_markup(
+        chat_id=call.message.chat.id, message_id=call.message.message_id
+    )
 
     game_runner.choose_veto(bot, game, call.from_user.id, answer)
 
