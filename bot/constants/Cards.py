@@ -1,6 +1,6 @@
 import constants.GameStrings
 
-gameStrings = constants.GameStrings.ChirstmasGameStrings
+gameStrings = constants.GameStrings.HalloweeenGameStrings
 
 playerSets = {
     # only for testing purposes

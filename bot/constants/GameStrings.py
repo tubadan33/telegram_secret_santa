@@ -15,7 +15,7 @@ ChirstmasGameStrings = {
 }
 
 HalloweeenGameStrings = {
-    "Hitler": "Dracula",
+    "Hitler": "Headless Horseman",
     "Liberals": "Treats",
     "Liberal": "Treat",
     "Fascists": "Tricks",
