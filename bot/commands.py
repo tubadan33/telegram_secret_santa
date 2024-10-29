@@ -53,6 +53,11 @@ def callback_choose_chancellor(call):
     chat_id = int(strcid)
     print(f"Attempting to get game with chat_id: {chat_id}")
     game = GamesController.get_game(chat_id)
+    bot.edit_message_text(
+        "You nominated %s as Chancellor!" % game.board.state.nominated_chancellor.name,
+        call.message.chat.id,
+        call.message.message_id,
+        )
     if game is None:
         print(f"No game found with chat_id: {chat_id}")
         return
@@ -72,13 +77,6 @@ def callback_choose_chancellor(call):
     game.board.state.nominated_chancellor = chosen_chancellor
     # Call the next stage function
     game_runner.nominate_chosen_chancellor(bot, game)
-
-    # Edit the message for the nominator
-    bot.edit_message_text(
-        "You nominated %s as Chancellor!" % game.board.state.nominated_chancellor.name,
-        call.message.chat.id,
-        call.message.message_id,
-    )
 
 
 @bot.callback_query_handler(
