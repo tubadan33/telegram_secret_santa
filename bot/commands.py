@@ -269,6 +269,9 @@ def choose_choose(call):
     chosen_user_id = int(struid)
     # Get the game instance
     game = GamesController.get_game(chat_id)
+    bot.edit_message_reply_markup(
+        chat_id=call.message.chat.id, message_id=call.message.message_id
+    )
     chosen_player = next(
         (player for player in game.player_sequence if player.user_id == chosen_user_id),
         None,
