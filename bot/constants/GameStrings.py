@@ -21,3 +21,11 @@ HalloweeenGameStrings = {
     "Fascists": "Tricks",
     "Fascist": "Trick",
 }
+
+EasterGameStrings = {
+    "Hitler": "Pontius Pilate",
+    "Liberals": "Apostles",
+    "Liberal": "Apostlist",
+    "Fascists": "Judases",
+    "Fascist": "Judist",
+}
