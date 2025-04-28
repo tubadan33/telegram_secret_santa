@@ -24,8 +24,16 @@ HalloweeenGameStrings = {
 
 EasterGameStrings = {
     "Hitler": "Pontius Pilate",
-    "Liberals": "Apostles",
-    "Liberal": "Apostlist",
-    "Fascists": "Judases",
-    "Fascist": "Judist",
+    "Liberals": "Apostates",
+    "Liberal": "Apostate",
+    "Fascists": "Philistines",
+    "Fascist": "Philistine",
+}
+
+AmericaVSBritishStrings = {
+    "Hitler": "King George",
+    "Liberals": "Rebels",
+    "Liberal": "Rebel",
+    "Fascists": "Loyalists",
+    "Fascist": "Loyalist",
 }
