@@ -1,6 +1,6 @@
 import constants.GameStrings
 
-gameStrings = constants.GameStrings.AmericaVSBritishStrings
+gameStrings = constants.GameStrings.GayVsStraightStrings
 
 playerSets = {
     # only for testing purposes
