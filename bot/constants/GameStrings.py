@@ -40,8 +40,8 @@ AmericaVSBritishStrings = {
 
 GayVsStraightStrings = {
     "Hitler": "Kamala",
-    "Liberals": "Gays",
-    "Liberal": "Gay",
-    "Fascists": "Straights",
-    "Fascist": "Straight",
+    "Liberals": "Straights",
+    "Liberal": "Striaght",
+    "Fascists": "Gays",
+    "Fascist": "Gay",
 }
