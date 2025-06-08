@@ -28,7 +28,7 @@ playerSets = {
                   gameStrings["Liberal"],
                   gameStrings["Fascist"],
                   gameStrings["Hitler"]],
-        "track": [None, "inspect", "policy", "kill", "kill", "win"],
+        "track": [None, None, "policy", "kill", "kill", "win"],
     },
     7: {
         "roles": [gameStrings["Liberal"],
@@ -38,7 +38,7 @@ playerSets = {
                   gameStrings["Fascist"],
                   gameStrings["Fascist"],
                   gameStrings["Hitler"]],
-        "track": ["inspect", "inspect", "choose", "kill", "kill", "win"],
+        "track": [None, "inspect", "choose", "kill", "kill", "win"],
     },
     8: {
         "roles": [gameStrings["Liberal"],
@@ -50,7 +50,7 @@ playerSets = {
                   gameStrings["Fascist"],
                   gameStrings["Hitler"]
                   ],
-        "track": ["inspect", "inspect", "choose", "kill", "kill", "win"],
+        "track": [None, "inspect", "choose", "kill", "kill", "win"],
     },
     9: {
         "roles": [gameStrings["Liberal"],

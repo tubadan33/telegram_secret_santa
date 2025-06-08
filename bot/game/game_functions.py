@@ -58,7 +58,7 @@ class SecretSantaGame:
 
         # commented out for fun game remove to go back to regular game
         game_runner.inform_players(bot, game)
-        # game_runner.inform_fascists(bot, game)
+        game_runner.inform_fascists(bot, game)
 
         random.shuffle(self.player_sequence)
         self.upcoming_turns = self.player_sequence.copy()

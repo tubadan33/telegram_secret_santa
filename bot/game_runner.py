@@ -706,17 +706,17 @@ def inform_players(bot, game):
         player.role = role
         player.party = get_membership(role)
 
-        # bot.send_message(
-        #     player.user_id,
-        #     "Your secret role is: %s\nYour party membership is: %s"
-        #     % (role, get_membership(role)),
-        # )
+        bot.send_message(
+            player.user_id,
+            "Your secret role is: %s\nYour party membership is: %s"
+            % (role, get_membership(role)),
+        )
 
-    # bot.send_message(
-    #     game.chat_id,
-    #     "Let's start the game with %d players!\n%s\nCheck your private messages for your secret role!"
-    #     % (player_number, print_player_info(player_number)),
-    # )
+    bot.send_message(
+        game.chat_id,
+        "Let's start the game with %d players!\n%s\nCheck your private messages for your secret role!"
+        % (player_number, print_player_info(player_number)),
+    )
 
 
 def inform_fascists(bot, game):
