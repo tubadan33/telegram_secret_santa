@@ -45,3 +45,11 @@ GayVsStraightStrings = {
     "Fascists": "Gays",
     "Fascist": "Gay",
 }
+
+AIVsHumansStrings = {
+    "Hitler": "Grok",
+    "Liberals": "Blood Bags",
+    "Liberal": "Blood Bag",
+    "Fascists": "Clankers",
+    "Fascist": "Clanker",
+}

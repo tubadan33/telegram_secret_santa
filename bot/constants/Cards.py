@@ -1,6 +1,6 @@
 import constants.GameStrings
 
-gameStrings = constants.GameStrings.GayVsStraightStrings
+gameStrings = constants.GameStrings.AIVsHumansStrings
 
 playerSets = {
     # only for testing purposes
