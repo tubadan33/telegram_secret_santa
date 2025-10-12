@@ -434,7 +434,7 @@ def start_game(message):
 
 @bot.message_handler(commands=["join"])
 def join(message, user=None, name=None):
-    print(user, name)
+    print(user, name, message.from_user.id)
     group_name = message.chat.title
     chat_id = message.chat.id
     groupType = message.chat.type
