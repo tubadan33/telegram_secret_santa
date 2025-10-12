@@ -15,11 +15,11 @@ ChirstmasGameStrings = {
 }
 
 HalloweeenGameStrings = {
-    "Hitler": "Headless Horseman",
-    "Liberals": "Treats",
-    "Liberal": "Treat",
-    "Fascists": "Tricks",
-    "Fascist": "Trick",
+    "Hitler": "Wendigo",
+    "Liberals": "Humans",
+    "Liberal": "Human",
+    "Fascists": "Skinwalkers",
+    "Fascist": "Skinwalker",
 }
 
 EasterGameStrings = {
@@ -41,7 +41,7 @@ AmericaVSBritishStrings = {
 GayVsStraightStrings = {
     "Hitler": "Kamala",
     "Liberals": "Straights",
-    "Liberal": "Striaght",
+    "Liberal": "Straight",
     "Fascists": "Gays",
     "Fascist": "Gay",
 }
