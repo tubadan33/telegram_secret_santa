@@ -53,3 +53,11 @@ AIVsHumansStrings = {
     "Fascists": "Clankers",
     "Fascist": "Clanker",
 }
+
+ChirstmasGameStringsV2 = {
+    "Hitler": "Rat King",
+    "Liberals": "Plum Fairies",
+    "Liberal": "Plum Fairy",
+    "Fascists": "Nutcrackers",
+    "Fascist": "Nutcracker",
+}
